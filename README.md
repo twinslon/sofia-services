@@ -18,7 +18,7 @@ npm run dev            # http://localhost:5173
 
 - **Static network** — the official [Sofia Traffic GTFS feed](https://gtfs.sofiatraffic.bg/api/v1/static) (routes, trips, line shapes) is downloaded and simplified by `scripts/prepare-data.mjs` into small JSON files under `public/data/`.
 - **Live vehicles** — the browser polls the official [GTFS-Realtime vehicle positions feed](https://gtfs.sofiatraffic.bg/api/v1/vehicle-positions) every 10 s, decodes the protobuf in-page, and matches vehicles to lines via the static data.
-- **Map** — rendered with [MapLibre GL](https://maplibre.org/) on free CARTO basemaps. No API keys needed.
+- **Map** — rendered with [MapLibre GL](https://maplibre.org/) on [OpenFreeMap](https://openfreemap.org) free vector tiles (dark style). No API keys needed.
 
 | Endpoint | Purpose |
 | --- | --- |

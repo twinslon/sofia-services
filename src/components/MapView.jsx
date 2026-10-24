@@ -2,24 +2,9 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { MODES, SOFIA_CENTER } from '../lib/transport.js'
 
-const BASEMAP_STYLE = {
-  version: 8,
-  sources: {
-    basemap: {
-      type: 'raster',
-      tiles: ['https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution:
-        '© OpenStreetMap contributors © CARTO',
-    },
-  },
-  glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-  layers: [
-    { id: 'background', type: 'background', paint: { 'background-color': '#0d1117' } },
-    { id: 'basemap', type: 'raster', source: 'basemap', paint: { 'raster-opacity': 0.9 } },
-  ],
-}
+// OpenFreeMap: free vector tiles, no API key, no watermark
+// https://openfreemap.org — styles: dark, positron, liberty, bright
+const BASEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark'
 
 const MODE_COLOR_STOPS = Object.entries(MODES).map(([mode, m]) => [mode, m.color])
 
@@ -45,7 +30,7 @@ export default function MapView({ shapesFC, vehiclesFC, modeFilter }) {
   useEffect(() => {
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: BASEMAP_STYLE,
+      style: BASEMAP_STYLE_URL,
       center: SOFIA_CENTER,
       zoom: 11.1,
       attributionControl: { compact: true },

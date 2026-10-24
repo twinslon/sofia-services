@@ -133,7 +133,10 @@ export default function App() {
           <a href="https://www.sofiatraffic.bg/bg/info-center/gtfs-danni" target="_blank" rel="noreferrer">
             Center for Urban Mobility (Sofia Traffic)
           </a>{' '}
-          · CC-BY-4.0 · Map © OpenStreetMap contributors, CARTO
+          · CC-BY-4.0 · Map © OpenStreetMap contributors · Tiles{' '}
+          <a href="https://openfreemap.org" target="_blank" rel="noreferrer">
+            OpenFreeMap
+          </a>
         </footer>
       </main>
     </div>
