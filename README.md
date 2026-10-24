@@ -37,6 +37,10 @@ npm test:report   # HTML report of the last run
 
 The suite covers the live feed (decode, line matching, re-poll), map rendering (pixel-agnostic assertions via MapLibre's `queryRenderedFeatures` — works headless with software WebGL), mode filtering, and integrity of the prepared GTFS extracts. CI runs it on every PR and as a gate before each Pages deploy.
 
+## Debugging with Chrome DevTools MCP
+
+An `opencode.json` in the repo registers the [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) server (headless Chrome, usage stats disabled) for OpenCode sessions started inside this directory — console/network inspection, performance traces, and script evaluation against the running app.
+
 ## Data license & attribution
 
 Transport data © **Center for Urban Mobility / Център за градска мобилност (Sofia Traffic)**, licensed [CC-BY-4.0](https://www.sofia.bg/web/guest/transport-data). Attribution is embedded in the app UI.
