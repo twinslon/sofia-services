@@ -51,10 +51,25 @@ test.describe('prepared GTFS extracts', () => {
     expect(points).toBeGreaterThan(1000)
   })
 
+  test('stops: 4k+ with code, name and Sofia-bounds coordinates', () => {
+    const stops = data('stops')
+    const ids = Object.keys(stops)
+    expect(ids.length).toBeGreaterThan(4000)
+    let checked = 0
+    for (const [id, s] of Object.entries(stops)) {
+      if (!s.n) throw new Error(`stop ${id} has no name`)
+      if (!(s.x > 22.8 && s.x < 23.8 && s.y > 42.4 && s.y < 43.05)) {
+        throw new Error(`stop ${id} out of bounds: ${s.x},${s.y}`)
+      }
+      if (++checked > 500) break
+    }
+  })
+
   test('meta: counts match the extracts and timestamp parses', () => {
     const meta = data('meta')
     expect(meta.counts.routes).toBe(Object.keys(data('routes')).length)
     expect(meta.counts.trips).toBe(Object.keys(data('trips')).length)
+    expect(meta.counts.stops).toBe(Object.keys(data('stops')).length)
     expect(meta.license).toContain('CC-BY-4.0')
     expect(new Date(meta.generated_at).toString()).not.toBe('Invalid Date')
   })

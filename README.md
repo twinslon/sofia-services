@@ -50,7 +50,8 @@ Basemap © OpenStreetMap contributors, © CARTO.
 
 - [x] Live vehicle map with mode filtering
 - [x] GitHub Pages deployment (Actions; daily cron rebuild refreshes GTFS extracts)
-- [ ] Arrivals board per stop (trip-updates feed)
+- [x] Arrivals board per stop (stop search + live predictions from trip-updates feed)
+- [x] Vehicle popups with next stops
 - [ ] Service alerts layer
 - [ ] Line explorer with timetables
 - [ ] More city services: air quality, bike parking, paid parking zones

@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import MapView from './components/MapView.jsx'
+import StopSearch from './components/StopSearch.jsx'
+import ArrivalsBoard from './components/ArrivalsBoard.jsx'
 import {
   MODES,
   RT_URLS,
+  arrivalsForStop,
+  buildArrivalsIndex,
   buildShapeFeatures,
   buildVehicleFeatures,
   extractVehicles,
@@ -21,6 +25,9 @@ const FILTERS = [
 export default function App() {
   const [staticData, setStaticData] = useState(null)
   const [vehiclesFC, setVehiclesFC] = useState(null)
+  const [arrivalsIndex, setArrivalsIndex] = useState(null)
+  const [arrivalsError, setArrivalsError] = useState(null)
+  const [selectedStopId, setSelectedStopId] = useState(null)
   const [modeFilter, setModeFilter] = useState('all')
   const [status, setStatus] = useState({ state: 'loading', count: 0, updatedAt: null })
 
@@ -29,15 +36,15 @@ export default function App() {
     let cancelled = false
     ;(async () => {
       try {
-        const [routes, trips, shapes, meta] = await Promise.all(
-          ['routes', 'trips', 'shapes', 'meta'].map((n) =>
+        const [routes, trips, shapes, stops, meta] = await Promise.all(
+          ['routes', 'trips', 'shapes', 'stops', 'meta'].map((n) =>
             fetch(`${import.meta.env.BASE_URL}data/${n}.json`).then((r) => {
               if (!r.ok) throw new Error(`${n}.json: HTTP ${r.status} — run "npm run prepare-data"`)
               return r.json()
             }),
           ),
         )
-        if (!cancelled) setStaticData({ routes, trips, shapes, meta })
+        if (!cancelled) setStaticData({ routes, trips, shapes, stops, meta })
       } catch (err) {
         if (!cancelled) setStatus((s) => ({ ...s, state: 'error', message: String(err.message || err) }))
       }
@@ -47,28 +54,38 @@ export default function App() {
     }
   }, [])
 
-  // Poll the real-time vehicle positions feed
+  // Poll both real-time feeds (vehicles + trip updates)
   useEffect(() => {
     let cancelled = false
     let timer
 
     const poll = async () => {
-      try {
-        const entities = await fetchRealtimeFeed(RT_URLS.vehiclePositions)
-        if (cancelled) return
-        const vehicles = extractVehicles(entities)
-        setVehiclesFC((prev) => {
-          // Enrich once static data is available; raw FC otherwise
-          return staticData
+      const [vpRes, tuRes] = await Promise.allSettled([
+        fetchRealtimeFeed(RT_URLS.vehiclePositions),
+        fetchRealtimeFeed(RT_URLS.tripUpdates),
+      ])
+      if (cancelled) return
+
+      if (vpRes.status === 'fulfilled') {
+        const vehicles = extractVehicles(vpRes.value)
+        setVehiclesFC(
+          staticData
             ? buildVehicleFeatures(vehicles, staticData)
-            : { type: 'FeatureCollection', features: [] }
-        })
+            : { type: 'FeatureCollection', features: [] },
+        )
         setStatus({ state: 'ok', count: vehicles.length, updatedAt: new Date() })
-      } catch (err) {
-        if (!cancelled) setStatus((s) => ({ ...s, state: 'error', message: String(err.message || err) }))
-      } finally {
-        if (!cancelled) timer = setTimeout(poll, POLL_INTERVAL_MS)
+      } else {
+        setStatus((s) => ({ ...s, state: 'error', message: String(vpRes.reason?.message || vpRes.reason) }))
       }
+
+      if (tuRes.status === 'fulfilled') {
+        setArrivalsIndex(buildArrivalsIndex(tuRes.value))
+        setArrivalsError(null)
+      } else {
+        setArrivalsError(String(tuRes.reason?.message || tuRes.reason))
+      }
+
+      if (!cancelled) timer = setTimeout(poll, POLL_INTERVAL_MS)
     }
 
     poll()
@@ -89,6 +106,14 @@ export default function App() {
     return counts
   }, [vehiclesFC])
 
+  const selectedStop = selectedStopId && staticData ? staticData.stops[selectedStopId] : null
+  const arrivals = useMemo(() => {
+    if (!selectedStopId || !arrivalsIndex || !staticData) return []
+    // Re-derive whenever a poll lands (arrivalsTick changes) and per minute
+    return arrivalsForStop(selectedStopId, arrivalsIndex, staticData)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStopId, arrivalsIndex, staticData, status.updatedAt])
+
   return (
     <div className="app">
       <header className="header">
@@ -103,6 +128,10 @@ export default function App() {
             </p>
           </div>
         </div>
+
+        {staticData && (
+          <StopSearch stops={staticData.stops} onSelect={(id) => setSelectedStopId(id)} />
+        )}
 
         <nav className="filters" aria-label="Filter by mode">
           {FILTERS.map((f) => (
@@ -127,7 +156,27 @@ export default function App() {
       </header>
 
       <main className="map-wrap">
-        <MapView shapesFC={shapesFC} vehiclesFC={vehiclesFC} modeFilter={modeFilter} />
+        <MapView
+          shapesFC={shapesFC}
+          vehiclesFC={vehiclesFC}
+          modeFilter={modeFilter}
+          stopsData={staticData?.stops}
+          selectedStopId={selectedStopId}
+          onSelectStop={setSelectedStopId}
+          arrivalsIndex={arrivalsIndex}
+        />
+
+        {staticData && (
+          <div className="panel">
+            <ArrivalsBoard
+              stop={selectedStop}
+              arrivals={arrivals}
+              error={arrivalsError}
+              onClose={() => setSelectedStopId(null)}
+            />
+          </div>
+        )}
+
         <footer className="attribution">
           Data:{' '}
           <a href="https://www.sofiatraffic.bg/bg/info-center/gtfs-danni" target="_blank" rel="noreferrer">

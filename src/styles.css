@@ -146,3 +146,222 @@ body,
   color: var(--accent);
   text-decoration: none;
 }
+
+/* ── Stop search ─────────────────────────────────────────── */
+
+.stop-search {
+  position: relative;
+  min-width: 240px;
+}
+
+.stop-search input {
+  width: 100%;
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+}
+
+.stop-search input:focus {
+  border-color: var(--accent);
+}
+
+.stop-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  max-height: 300px;
+  overflow: auto;
+}
+
+.stop-results button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--text);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.stop-results button:hover {
+  background: rgba(88, 166, 255, 0.12);
+}
+
+.stop-code {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Arrivals board panel ────────────────────────────────── */
+
+.panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(62vh, 520px);
+  overflow: auto;
+}
+
+.arrivals-board {
+  background: rgba(22, 27, 34, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  backdrop-filter: blur(8px);
+}
+
+.board-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.board-header h2 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.board-close {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  font-size: 13px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.board-close:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.board-list {
+  margin: 10px 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.board-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px;
+  border-bottom: 1px solid rgba(48, 54, 61, 0.6);
+}
+
+.board-row:last-child {
+  border-bottom: 0;
+}
+
+.line-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  border-radius: 6px;
+  background: var(--accent);
+}
+
+.board-headsign {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.board-eta,
+.veh-popup .eta {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #3fb950;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-empty {
+  margin: 10px 0 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.board-error {
+  color: #f85149;
+}
+
+.board-footer {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── Vehicle popup ───────────────────────────────────────── */
+
+.veh-popup {
+  font-family: 'Noto Sans', 'Segoe UI', system-ui, sans-serif;
+  color: var(--text);
+}
+
+.veh-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.veh-headsign {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.veh-next {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.veh-next li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.veh-id {
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.7;
+}

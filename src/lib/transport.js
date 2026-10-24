@@ -45,6 +45,60 @@ export async function fetchRealtimeFeed(url) {
   return feed.entity ?? []
 }
 
+/** Index trip-updates entities by stop and by trip. */
+export function buildArrivalsIndex(entities) {
+  const byStop = new Map() // stopId -> [{ tripId, routeId, time }]
+  const byTrip = new Map() // tripId -> [{ stopId, time }] (chronological)
+  for (const e of entities) {
+    const tu = e.tripUpdate
+    if (!tu?.trip?.tripId) continue
+    const { tripId, routeId } = tu.trip
+    const tripStops = []
+    for (const s of tu.stopTimeUpdate ?? []) {
+      const time = Number(s.arrival?.time ?? s.departure?.time ?? 0)
+      if (!s.stopId || !time) continue
+      tripStops.push({ stopId: s.stopId, time })
+      const arr = byStop.get(s.stopId)
+      if (arr) arr.push({ tripId, routeId, time })
+      else byStop.set(s.stopId, [{ tripId, routeId, time }])
+    }
+    if (tripStops.length) {
+      tripStops.sort((a, b) => a.time - b.time)
+      byTrip.set(tripId, tripStops)
+    }
+  }
+  return { byStop, byTrip }
+}
+
+/** Upcoming arrivals at a stop, enriched with static GTFS. */
+export function arrivalsForStop(stopId, index, { routes, trips }, nowSec = Date.now() / 1000) {
+  const list = index?.byStop?.get(stopId) ?? []
+  return list
+    .map(({ tripId, routeId, time }) => {
+      const route = routes[trips[tripId]?.r ?? routeId]
+      const etaSec = Math.round(time - nowSec)
+      return {
+        line: route?.n || routeId || '?',
+        mode: route ? (ROUTE_TYPE_TO_MODE[route.t] ?? 'other') : 'other',
+        color: route?.c ? `#${route.c}` : null,
+        headsign: trips[tripId]?.h ?? '',
+        etaSec,
+        time,
+      }
+    })
+    .filter((a) => a.etaSec > -30)
+    .sort((a, b) => a.time - b.time)
+    .slice(0, 12)
+}
+
+/** "now", "2 min", "1:32" — absolute time when far out. */
+export function formatEta(etaSec) {
+  if (etaSec < 45) return 'now'
+  if (etaSec < 3600) return `${Math.round(etaSec / 60)} min`
+  const d = new Date(Date.now() + etaSec * 1000)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 /** Extract a normalized vehicle list from decoded vehicle-position entities. */
 export function extractVehicles(entities) {
   const vehicles = []
@@ -75,6 +129,7 @@ export function buildVehicleFeatures(vehicles, { routes, trips }) {
       geometry: { type: 'Point', coordinates: [v.lon, v.lat] },
       properties: {
         id: v.id,
+        tripId: v.tripId,
         mode,
         line: route?.n || routeId || '?',
         headsign: trip?.h || '',

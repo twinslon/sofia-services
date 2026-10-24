@@ -40,6 +40,8 @@ async function main() {
   const routes = parseGtfsCsv(read('routes.txt'))
   console.log('Parsing trips.txt ...')
   const trips = parseGtfsCsv(read('trips.txt'))
+  console.log('Parsing stops.txt ...')
+  const stops = parseGtfsCsv(read('stops.txt'))
   console.log('Parsing shapes.txt ...')
   const shapeRows = parseGtfsCsv(read('shapes.txt'))
 
@@ -83,11 +85,25 @@ async function main() {
     }
   }
 
+  // --- stops.json: stop_id -> { code, name, lat, lon } ------------------
+  const stopsOut = {}
+  for (const s of stops) {
+    if (s.location_type === '1') continue // skip station parents; keep platforms
+    if (!s.stop_name) continue // unnamed path/entrance nodes — not searchable
+    stopsOut[s.stop_id] = {
+      c: s.stop_code || '',
+      n: s.stop_name,
+      y: round(Number(s.stop_lat)),
+      x: round(Number(s.stop_lon)),
+    }
+  }
+
   await mkdir(OUT_DIR, { recursive: true })
   await Promise.all([
     writeFile(new URL('routes.json', OUT_DIR), JSON.stringify(routesOut)),
     writeFile(new URL('shapes.json', OUT_DIR), JSON.stringify(shapesOut)),
     writeFile(new URL('trips.json', OUT_DIR), JSON.stringify(tripsOut)),
+    writeFile(new URL('stops.json', OUT_DIR), JSON.stringify(stopsOut)),
     writeFile(
       new URL('meta.json', OUT_DIR),
       JSON.stringify(
@@ -99,6 +115,7 @@ async function main() {
             routes: Object.keys(routesOut).length,
             trips: Object.keys(tripsOut).length,
             shapes: Object.keys(shapesOut).length,
+            stops: Object.keys(stopsOut).length,
             shape_points_raw: raw,
             shape_points_kept: kept,
           },
@@ -116,6 +133,7 @@ async function main() {
   console.log(`  routes : ${Object.keys(routesOut).length}  (by type: ${JSON.stringify(typeCounts)})`)
   console.log(`  trips  : ${Object.keys(tripsOut).length}`)
   console.log(`  shapes : ${Object.keys(shapesOut).length}`)
+  console.log(`  stops  : ${Object.keys(stopsOut).length}`)
   console.log(`  points : ${raw.toLocaleString()} -> ${kept.toLocaleString()} after simplification`)
 }
 
