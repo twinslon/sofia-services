@@ -52,7 +52,7 @@ export default function StopSearch({ stops, onSelect }) {
         <ul className="stop-results">
           {results.map((r) => (
             <li key={r.stopId}>
-              <button onMouseDown={() => clearTimeout(blurTimer.current) || pick(r)}>
+              <button onClick={() => pick(r)}>
                 <span className="stop-name">{r.name}</span>
                 {r.code && <span className="stop-code">{r.code}</span>}
               </button>
