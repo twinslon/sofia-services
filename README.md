@@ -27,6 +27,16 @@ npm run dev            # http://localhost:5173
 | `https://gtfs.sofiatraffic.bg/api/v1/trip-updates` | Real-time arrival predictions (protobuf) — unused yet |
 | `https://gtfs.sofiatraffic.bg/api/v1/alerts` | Service alerts (protobuf) — unused yet |
 
+## Testing
+
+```bash
+npm test          # Playwright e2e + data-integrity suite (system Chrome, headless)
+npm test:headed   # watch it run
+npm test:report   # HTML report of the last run
+```
+
+The suite covers the live feed (decode, line matching, re-poll), map rendering (pixel-agnostic assertions via MapLibre's `queryRenderedFeatures` — works headless with software WebGL), mode filtering, and integrity of the prepared GTFS extracts. CI runs it on every PR and as a gate before each Pages deploy.
+
 ## Data license & attribution
 
 Transport data © **Center for Urban Mobility / Център за градска мобилност (Sofia Traffic)**, licensed [CC-BY-4.0](https://www.sofia.bg/web/guest/transport-data). Attribution is embedded in the app UI.
