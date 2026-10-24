@@ -122,9 +122,12 @@ body,
   min-height: 0;
 }
 
-.map {
+/* .maplibregl-map sets position:relative — override it explicitly */
+.map.maplibregl-map {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .attribution {

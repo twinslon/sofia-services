@@ -31,6 +31,15 @@ export default function MapView({ shapesFC, vehiclesFC, modeFilter }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const readyRef = useRef(false)
+  const dataRef = useRef({ shapes: null, vehicles: null })
+
+  // Push data into a map source only once the map is loaded; otherwise
+  // it is kept in dataRef and flushed by the 'load' handler (race-safe).
+  const pushData = (which, fc) => {
+    const map = mapRef.current
+    if (!map || !readyRef.current || !fc) return
+    map.getSource(which)?.setData(fc)
+  }
 
   // Create the map once
   useEffect(() => {
@@ -44,8 +53,14 @@ export default function MapView({ shapesFC, vehiclesFC, modeFilter }) {
     mapRef.current = map
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
     map.on('load', () => {
-      map.addSource('shapes', { type: 'geojson', data: emptyFC() })
-      map.addSource('vehicles', { type: 'geojson', data: emptyFC() })
+      map.addSource('shapes', {
+        type: 'geojson',
+        data: dataRef.current.shapes ?? emptyFC(),
+      })
+      map.addSource('vehicles', {
+        type: 'geojson',
+        data: dataRef.current.vehicles ?? emptyFC(),
+      })
 
       map.addLayer({
         id: 'shapes-line',
@@ -100,7 +115,12 @@ export default function MapView({ shapesFC, vehiclesFC, modeFilter }) {
       })
 
       readyRef.current = true
+      // Exposed for debugging/E2E tests (queryRenderedFeatures etc.)
+      window.__map = map
       map.resize()
+      // Flush anything that arrived before the map finished loading
+      pushData('shapes', dataRef.current.shapes)
+      pushData('vehicles', dataRef.current.vehicles)
     })
 
     return () => {
@@ -110,19 +130,15 @@ export default function MapView({ shapesFC, vehiclesFC, modeFilter }) {
     }
   }, [])
 
-  // Push data into the sources when it changes
+  // Keep the latest data in refs and push whenever it changes
   useEffect(() => {
-    const map = mapRef.current
-    if (!map || !readyRef.current) return
-    const src = map.getSource('shapes')
-    if (src && shapesFC) src.setData(shapesFC)
+    dataRef.current.shapes = shapesFC
+    pushData('shapes', shapesFC)
   }, [shapesFC])
 
   useEffect(() => {
-    const map = mapRef.current
-    if (!map || !readyRef.current) return
-    const src = map.getSource('vehicles')
-    if (src && vehiclesFC) src.setData(vehiclesFC)
+    dataRef.current.vehicles = vehiclesFC
+    pushData('vehicles', vehiclesFC)
   }, [vehiclesFC])
 
   // Apply mode filter to all layers
