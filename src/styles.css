@@ -612,3 +612,118 @@ body,
   color: var(--muted);
   opacity: 0.7;
 }
+
+/* ── Mobile ──────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .app {
+    height: 100dvh;
+  }
+
+  .header {
+    gap: 10px;
+    padding: 8px 12px;
+  }
+
+  .brand h1 {
+    font-size: 15px;
+  }
+
+  .tagline {
+    display: none;
+  }
+
+  /* Full-width search on its own row; 16px prevents iOS focus zoom */
+  .stop-search {
+    order: 10;
+    flex: 1 0 100%;
+    min-width: 0;
+  }
+
+  .stop-search input {
+    font-size: 16px;
+    padding: 9px 12px;
+  }
+
+  /* Single scrollable filter row */
+  .filters {
+    order: 11;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chip {
+    flex: 0 0 auto;
+    padding: 7px 13px;
+  }
+
+  .status {
+    order: 5;
+    margin-left: auto;
+    font-size: 11px;
+  }
+
+  /* Panels become bottom sheets */
+  .alerts-wrap {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 62dvh;
+  }
+
+  .alerts-panel,
+  .line-panel {
+    border-radius: 14px 14px 0 0;
+    border-bottom: 0;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+
+  /* Drag-handle affordance */
+  .alerts-panel::before,
+  .line-panel::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    margin: 0 auto 10px;
+  }
+
+  .maplibregl-popup {
+    max-width: 92vw;
+  }
+
+  .board-title {
+    padding-right: 20px;
+  }
+
+  /* Touch-sized targets */
+  .dir-stops button {
+    padding: 12px 6px;
+  }
+
+  .stop-results button {
+    padding: 10px 8px;
+  }
+
+  .board-close {
+    padding: 6px 11px;
+    font-size: 15px;
+  }
+
+  .attribution {
+    font-size: 10px;
+    left: 6px;
+    bottom: 20px;
+    max-width: 72%;
+  }
+}
