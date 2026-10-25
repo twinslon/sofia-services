@@ -16,16 +16,16 @@ npm run dev            # http://localhost:5173
 
 ## How it works
 
-- **Static network** — the official [Sofia Traffic GTFS feed](https://gtfs.sofiatraffic.bg/api/v1/static) (routes, trips, line shapes) is downloaded and simplified by `scripts/prepare-data.mjs` into small JSON files under `public/data/`.
-- **Live vehicles** — the browser polls the official [GTFS-Realtime vehicle positions feed](https://gtfs.sofiatraffic.bg/api/v1/vehicle-positions) every 10 s, decodes the protobuf in-page, and matches vehicles to lines via the static data.
-- **Map** — rendered with [MapLibre GL](https://maplibre.org/) on [OpenFreeMap](https://openfreemap.org) free vector tiles (dark style). No API keys needed.
+- **Static network** — the official [Sofia Traffic GTFS feed](https://gtfs.sofiatraffic.bg/api/v1/static) (routes, trips, stops, line shapes) is downloaded by `scripts/prepare-data.mjs` into slim JSON extracts under `public/data/`: shapes are simplified (~80% fewer points), stops are deduplicated (dead stops dropped, same-name clusters within 75 m merged into one board).
+- **Live feeds** — the browser polls the official GTFS-Realtime protobuf feeds and decodes them in-page: vehicle positions + trip updates every 10 s, service alerts every 60 s.
+- **Map** — rendered with [MapLibre GL](https://maplibre.org/) on [OpenFreeMap](https://openfreemap.org) free vector tiles (light `positron` style). No API keys needed.
 
 | Endpoint | Purpose |
 | --- | --- |
 | `https://gtfs.sofiatraffic.bg/api/v1/static` | GTFS zip (routes, stops, schedules, shapes), refreshed daily |
 | `https://gtfs.sofiatraffic.bg/api/v1/vehicle-positions` | Real-time vehicle positions (protobuf) |
-| `https://gtfs.sofiatraffic.bg/api/v1/trip-updates` | Real-time arrival predictions (protobuf) — unused yet |
-| `https://gtfs.sofiatraffic.bg/api/v1/alerts` | Service alerts (protobuf) — unused yet |
+| `https://gtfs.sofiatraffic.bg/api/v1/trip-updates` | Real-time arrival predictions (protobuf) — arrivals boards, vehicle next-stops |
+| `https://gtfs.sofiatraffic.bg/api/v1/alerts` | Service alerts (protobuf) — bell, panel, amber route highlights |
 
 ## Testing
 
@@ -44,14 +44,30 @@ An `opencode.json` in the repo registers the [chrome-devtools-mcp](https://githu
 ## Data license & attribution
 
 Transport data © **Center for Urban Mobility / Център за градска мобилност (Sofia Traffic)**, licensed [CC-BY-4.0](https://www.sofia.bg/web/guest/transport-data). Attribution is embedded in the app UI.
-Basemap © OpenStreetMap contributors, © CARTO.
+Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreemap.org).
 
 ## Roadmap
 
-- [x] Live vehicle map with mode filtering
-- [x] GitHub Pages deployment (Actions; daily cron rebuild refreshes GTFS extracts)
-- [x] Arrivals board per stop (stop search + live predictions from trip-updates feed)
-- [x] Vehicle popups with next stops
-- [ ] Service alerts layer
-- [ ] Line explorer with timetables
-- [ ] More city services: air quality, bike parking, paid parking zones
+### Shipped
+
+- [x] Live vehicle map with mode filtering (metro / tram / trolley / bus)
+- [x] Arrivals boards per stop — search by name or code, or click a stop dot on the map
+- [x] Vehicle popups with line, headsign and next stops
+- [x] Service alerts — bell + panel, affected lines highlighted amber on the map
+- [x] Stop deduplication (dead stops dropped, directional pairs merged)
+- [x] Light theme (OpenFreeMap positron + matching UI)
+- [x] GitHub Pages deployment — CI test gate, daily cron rebuild refreshes GTFS extracts
+- [x] E2E + data-integrity test suite (Playwright, 17 tests) and Chrome DevTools MCP debugging
+
+### Next up
+
+- [ ] Line explorer — click a line for its route, stops in order and timetable (needs a stop-times extract in `prepare-data`)
+- [ ] Mobile ergonomics — bottom-sheet layout for boards/panels on small screens
+- [ ] Smooth vehicle movement between polls (interpolate positions by bearing)
+
+### Later
+
+- [ ] First non-transit service: air quality (official stations) on the map
+- [ ] City bike parking and paid parking zones (opendata.government.bg)
+- [ ] bg/en UI toggle (GTFS translations.txt already carries both)
+- [ ] Bundle code-splitting (maplibre + protobuf dominate the 380 kB gzipped JS)
