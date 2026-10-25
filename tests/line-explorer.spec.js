@@ -14,6 +14,7 @@ test.describe('line explorer', () => {
         const coords = f.geometry.coordinates
         for (let i = 1; i < coords.length; i += 3) {
           const lngLat = coords[i]
+          if (!Number.isFinite(lngLat[0]) || !Number.isFinite(lngLat[1])) continue
           const point = m.project(lngLat)
           const blockers = m.queryRenderedFeatures(point, { layers: ['stops-dot', 'vehicles-core'] })
           const lines = m.queryRenderedFeatures(point, { layers: ['shapes-line'] })

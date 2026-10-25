@@ -80,10 +80,13 @@ async function main() {
   // --- shapes.json: shape_id -> [[lon, lat], ...] (simplified) ----------
   const byShape = new Map()
   for (const s of shapeRows) {
+    const lon = Number(s.shape_pt_lon)
+    const lat = Number(s.shape_pt_lat)
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue
     const id = s.shape_id
     let pts = byShape.get(id)
     if (!pts) byShape.set(id, (pts = []))
-    pts.push([round(Number(s.shape_pt_lon)), round(Number(s.shape_pt_lat))])
+    pts.push([round(lon), round(lat)])
   }
   const shapesOut = {}
   let raw = 0
