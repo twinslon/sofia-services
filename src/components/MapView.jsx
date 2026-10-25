@@ -3,8 +3,11 @@ import maplibregl from 'maplibre-gl'
 import { MODES, SOFIA_CENTER, formatEta } from '../lib/transport.js'
 
 // OpenFreeMap: free vector tiles, no API key, no watermark
-// https://openfreemap.org — styles: dark, positron, liberty, bright
-const BASEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark'
+// https://openfreemap.org — styles: positron (light), dark, liberty, bright
+const BASEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron'
+
+const ACCENT = '#0969da'
+const INK = '#1f2328'
 
 const MODE_COLOR_STOPS = Object.entries(MODES).map(([mode, m]) => [mode, m.color])
 
@@ -21,8 +24,10 @@ export default function MapView({
   vehiclesFC,
   modeFilter,
   stopsData,
-  selectedStopId,
+  selectedStop,
+  arrivals,
   onSelectStop,
+  onStopClose,
   arrivalsIndex,
 }) {
   const containerRef = useRef(null)
@@ -30,7 +35,10 @@ export default function MapView({
   const readyRef = useRef(false)
   const dataRef = useRef({ shapes: null, vehicles: null })
   const propsRef = useRef({ stopsData, arrivalsIndex })
-  const popupRef = useRef(null)
+  const popupRef = useRef(null) // vehicle popup (transient)
+  const boardRef = useRef(null) // stop board popup (persistent while selected)
+  const callbacksRef = useRef({ onSelectStop, onStopClose })
+  callbacksRef.current = { onSelectStop, onStopClose }
   propsRef.current = { stopsData, arrivalsIndex }
 
   const pushData = (which, fc) => {
@@ -67,22 +75,23 @@ export default function MapView({
         source: 'shapes',
         paint: {
           'line-color': colorByMode(MODES.other.color),
-          'line-opacity': 0.35,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.7, 14, 1.6],
+          'line-opacity': 0.45,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.8, 14, 1.8],
         },
       })
 
+      // Bold stop circles — bigger than vehicles
       map.addLayer({
         id: 'stops-dot',
         type: 'circle',
         source: 'stops',
-        minzoom: 13,
+        minzoom: 11,
         paint: {
-          'circle-radius': 3.5,
-          'circle-color': '#8b949e',
-          'circle-opacity': 0.8,
-          'circle-stroke-width': 1,
-          'circle-stroke-color': '#0d1117',
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 4, 12, 5, 14, 7, 16, 9],
+          'circle-color': INK,
+          'circle-opacity': 0.9,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
         },
       })
       map.addLayer({
@@ -90,12 +99,12 @@ export default function MapView({
         type: 'circle',
         source: 'stops',
         paint: {
-          'circle-radius': 7,
-          'circle-color': '#58a6ff',
-          'circle-stroke-width': 2.5,
-          'circle-stroke-color': '#e6edf3',
+          'circle-radius': 9,
+          'circle-color': ACCENT,
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#ffffff',
         },
-        filter: ['==', ['get', 'stop_id'], selectedStopId ?? ''],
+        filter: ['==', ['get', 'stop_id'], selectedStop?.id ?? ''],
       })
 
       map.addLayer({
@@ -105,7 +114,7 @@ export default function MapView({
         paint: {
           'circle-radius': 6,
           'circle-color': colorByMode(MODES.other.color),
-          'circle-opacity': 0.25,
+          'circle-opacity': 0.3,
           'circle-blur': 0.6,
         },
       })
@@ -116,7 +125,7 @@ export default function MapView({
         paint: {
           'circle-radius': 3.5,
           'circle-color': '#ffffff',
-          'circle-stroke-width': 1.6,
+          'circle-stroke-width': 2,
           'circle-stroke-color': colorByMode(MODES.other.color),
         },
       })
@@ -133,16 +142,16 @@ export default function MapView({
           'text-anchor': 'bottom',
         },
         paint: {
-          'text-color': '#e6edf3',
-          'text-halo-color': '#0d1117',
-          'text-halo-width': 1.4,
+          'text-color': INK,
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.6,
         },
       })
 
       // Interactions
       map.on('click', 'stops-dot', (e) => {
         const f = e.features?.[0]
-        if (f?.properties?.stop_id) onSelectStopRef.current(f.properties.stop_id)
+        if (f?.properties?.stop_id) callbacksRef.current.onSelectStop(f.properties.stop_id)
       })
       map.on('mouseenter', 'stops-dot', () => (map.getCanvas().style.cursor = 'pointer'))
       map.on('mouseleave', 'stops-dot', () => (map.getCanvas().style.cursor = ''))
@@ -171,16 +180,13 @@ export default function MapView({
     return () => {
       readyRef.current = false
       popupRef.current?.remove()
+      boardRef.current?.remove()
       map.remove()
       mapRef.current = null
       window.__map = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Latest callback for stop selection (used by map click handlers)
-  const onSelectStopRef = useRef(onSelectStop)
-  onSelectStopRef.current = onSelectStop
 
   useEffect(() => {
     dataRef.current.shapes = shapesFC
@@ -192,7 +198,7 @@ export default function MapView({
     pushData('vehicles', vehiclesFC)
   }, [vehiclesFC])
 
-  // Push stop markers + highlight the selected one
+  // Push stop markers
   useEffect(() => {
     if (!stopsData) return
     const features = Object.entries(stopsData).map(([stopId, s]) => ({
@@ -203,15 +209,40 @@ export default function MapView({
     pushData('stops', { type: 'FeatureCollection', features })
   }, [stopsData])
 
+  // Selected stop: highlight, fly to, and open/update its board popup
   useEffect(() => {
     const map = mapRef.current
     if (!map || !readyRef.current) return
-    map.setFilter('stops-selected', ['==', ['get', 'stop_id'], selectedStopId ?? ''])
-    if (selectedStopId && stopsData?.[selectedStopId]) {
-      const s = stopsData[selectedStopId]
-      map.easeTo({ center: [s.x, s.y], zoom: Math.max(map.getZoom(), 14.5), duration: 600 })
+    map.setFilter('stops-selected', ['==', ['get', 'stop_id'], selectedStop?.id ?? ''])
+
+    if (!selectedStop) {
+      boardRef.current?.remove()
+      boardRef.current = null
+      return
     }
-  }, [selectedStopId, stopsData])
+
+    const html = boardPopupHTML(selectedStop, arrivals)
+    if (boardRef.current?.isOpen()) {
+      boardRef.current.setHTML(html)
+    } else {
+      boardRef.current?.remove()
+      const board = new maplibregl.Popup({
+        offset: 12,
+        maxWidth: '320px',
+        className: 'board-popup-wrap',
+      })
+      board.setLngLat([selectedStop.x, selectedStop.y]).setHTML(html)
+      board.on('close', () => {
+        if (boardRef.current) {
+          boardRef.current = null
+          callbacksRef.current.onStopClose?.()
+        }
+      })
+      board.addTo(map)
+      boardRef.current = board
+    }
+    map.easeTo({ center: [selectedStop.x, selectedStop.y], zoom: Math.max(map.getZoom(), 14.5), duration: 600 })
+  }, [selectedStop, arrivals])
 
   // Apply mode filter to all layers
   useEffect(() => {
@@ -224,6 +255,36 @@ export default function MapView({
   }, [modeFilter])
 
   return <div ref={containerRef} className="map" />
+}
+
+/** Arrivals board popup for a selected stop. */
+function boardPopupHTML(stop, arrivals) {
+  const rows = (arrivals ?? [])
+    .map(
+      (a) => `
+      <li class="board-row">
+        <span class="line-badge" style="background:${a.color ?? 'var(--accent)'}">${escapeHtml(a.line)}</span>
+        <span class="board-headsign" title="${escapeHtml(a.headsign)}">${escapeHtml(a.headsign || '—')}</span>
+        <span class="board-eta">${escapeHtml(formatEta(a.etaSec))}</span>
+      </li>`,
+    )
+    .join('')
+  const body = arrivalsErrorOrEmpty(arrivals)
+  return `
+    <div class="board-popup" data-count="${arrivals?.length ?? 0}">
+      <div class="board-title">
+        <h2>${escapeHtml(stop.n)}</h2>
+        ${stop.c ? `<span class="stop-code">${escapeHtml(stop.c)}</span>` : ''}
+      </div>
+      ${body ?? `<ul class="board-list">${rows}</ul>`}
+      <div class="board-footer">Live predictions · Center for Urban Mobility</div>
+    </div>`
+}
+
+function arrivalsErrorOrEmpty(arrivals) {
+  if (!arrivals) return `<p class="board-empty">Loading arrivals …</p>`
+  if (arrivals.length === 0) return `<p class="board-empty">No upcoming arrivals in the live feed right now.</p>`
+  return null
 }
 
 /** Popup content: line, headsign + the next stops of this trip. */

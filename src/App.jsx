@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import MapView from './components/MapView.jsx'
 import StopSearch from './components/StopSearch.jsx'
-import ArrivalsBoard from './components/ArrivalsBoard.jsx'
 import {
   MODES,
   RT_URLS,
@@ -26,7 +25,6 @@ export default function App() {
   const [staticData, setStaticData] = useState(null)
   const [vehiclesFC, setVehiclesFC] = useState(null)
   const [arrivalsIndex, setArrivalsIndex] = useState(null)
-  const [arrivalsError, setArrivalsError] = useState(null)
   const [selectedStopId, setSelectedStopId] = useState(null)
   const [modeFilter, setModeFilter] = useState('all')
   const [status, setStatus] = useState({ state: 'loading', count: 0, updatedAt: null })
@@ -80,9 +78,6 @@ export default function App() {
 
       if (tuRes.status === 'fulfilled') {
         setArrivalsIndex(buildArrivalsIndex(tuRes.value))
-        setArrivalsError(null)
-      } else {
-        setArrivalsError(String(tuRes.reason?.message || tuRes.reason))
       }
 
       if (!cancelled) timer = setTimeout(poll, POLL_INTERVAL_MS)
@@ -106,10 +101,15 @@ export default function App() {
     return counts
   }, [vehiclesFC])
 
-  const selectedStop = selectedStopId && staticData ? staticData.stops[selectedStopId] : null
+  const selectedStop = useMemo(() => {
+    if (!selectedStopId || !staticData) return null
+    const s = staticData.stops[selectedStopId]
+    return s ? { id: selectedStopId, ...s } : null
+  }, [selectedStopId, staticData])
+
   const arrivals = useMemo(() => {
-    if (!selectedStopId || !arrivalsIndex || !staticData) return []
-    // Re-derive whenever a poll lands (arrivalsTick changes) and per minute
+    if (!selectedStopId || !arrivalsIndex || !staticData) return null
+    // Re-derive whenever a poll lands (status.updatedAt changes) to refresh ETAs
     return arrivalsForStop(selectedStopId, arrivalsIndex, staticData)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStopId, arrivalsIndex, staticData, status.updatedAt])
@@ -161,21 +161,12 @@ export default function App() {
           vehiclesFC={vehiclesFC}
           modeFilter={modeFilter}
           stopsData={staticData?.stops}
-          selectedStopId={selectedStopId}
+          selectedStop={selectedStop}
+          arrivals={arrivals}
           onSelectStop={setSelectedStopId}
+          onStopClose={() => setSelectedStopId(null)}
           arrivalsIndex={arrivalsIndex}
         />
-
-        {staticData && (
-          <div className="panel">
-            <ArrivalsBoard
-              stop={selectedStop}
-              arrivals={arrivals}
-              error={arrivalsError}
-              onClose={() => setSelectedStopId(null)}
-            />
-          </div>
-        )}
 
         <footer className="attribution">
           Data:{' '}
