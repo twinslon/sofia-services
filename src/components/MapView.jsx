@@ -28,6 +28,9 @@ export default function MapView({
   arrivals,
   onSelectStop,
   onStopClose,
+  selectedRouteId,
+  focusBounds,
+  onRouteSelect,
   arrivalsIndex,
 }) {
   const containerRef = useRef(null)
@@ -37,8 +40,8 @@ export default function MapView({
   const propsRef = useRef({ stopsData, arrivalsIndex })
   const popupRef = useRef(null) // vehicle popup (transient)
   const boardRef = useRef(null) // stop board popup (persistent while selected)
-  const callbacksRef = useRef({ onSelectStop, onStopClose })
-  callbacksRef.current = { onSelectStop, onStopClose }
+  const callbacksRef = useRef({ onSelectStop, onStopClose, onRouteSelect })
+  callbacksRef.current = { onSelectStop, onStopClose, onRouteSelect }
   propsRef.current = { stopsData, arrivalsIndex }
 
   const pushData = (which, fc) => {
@@ -95,6 +98,20 @@ export default function MapView({
           'line-opacity': 0.9,
           'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.6, 14, 3],
           'line-dasharray': [2, 1.4],
+        },
+      })
+
+      // Selected route — bold highlight on top of everything
+      map.addLayer({
+        id: 'shapes-selected',
+        type: 'line',
+        source: 'shapes',
+        filter: ['==', ['get', 'routeId'], ''],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': ['coalesce', ['get', 'color'], ACCENT],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 3, 14, 5],
+          'line-opacity': 0.95,
         },
       })
 
@@ -166,28 +183,34 @@ export default function MapView({
         },
       })
 
-      // Interactions
-      map.on('click', 'stops-dot', (e) => {
-        // Vehicles take precedence when a stop and vehicle overlap
+      // Interactions — one click handler, clear priority: vehicles > stops > lines
+      map.on('click', (e) => {
         const vehicles = map.queryRenderedFeatures(e.point, { layers: ['vehicles-core'] })
-        if (vehicles.length > 0) return
-        const f = e.features?.[0]
-        if (f?.properties?.stop_id) callbacksRef.current.onSelectStop(f.properties.stop_id)
+        if (vehicles.length > 0) {
+          popupRef.current?.remove()
+          popupRef.current = new maplibregl.Popup({ closeButton: false, offset: 8, maxWidth: '260px' })
+            .setLngLat(e.lngLat)
+            .setHTML(vehiclePopupHTML(vehicles[0].properties, propsRef.current))
+            .addTo(map)
+          return
+        }
+        const stopFeatures = map.queryRenderedFeatures(e.point, { layers: ['stops-dot'] })
+        if (stopFeatures.length > 0) {
+          const stopId = stopFeatures[0].properties.stop_id
+          if (stopId) callbacksRef.current.onSelectStop(stopId)
+          return
+        }
+        const lineFeatures = map.queryRenderedFeatures(e.point, { layers: ['shapes-line', 'shapes-alert'] })
+        if (lineFeatures.length > 0 && lineFeatures[0].properties.routeId) {
+          callbacksRef.current.onRouteSelect?.(lineFeatures[0].properties.routeId)
+        }
       })
-      map.on('mouseenter', 'stops-dot', () => (map.getCanvas().style.cursor = 'pointer'))
-      map.on('mouseleave', 'stops-dot', () => (map.getCanvas().style.cursor = ''))
-
-      map.on('click', 'vehicles-core', (e) => {
-        const f = e.features?.[0]
-        if (!f) return
-        popupRef.current?.remove()
-        popupRef.current = new maplibregl.Popup({ closeButton: false, offset: 8, maxWidth: '260px' })
-          .setLngLat(e.lngLat)
-          .setHTML(vehiclePopupHTML(f.properties, propsRef.current))
-          .addTo(map)
+      map.on('mousemove', (e) => {
+        const hit = map.queryRenderedFeatures(e.point, {
+          layers: ['vehicles-core', 'stops-dot', 'shapes-line'],
+        })
+        map.getCanvas().style.cursor = hit.length > 0 ? 'pointer' : ''
       })
-      map.on('mouseenter', 'vehicles-core', () => (map.getCanvas().style.cursor = 'pointer'))
-      map.on('mouseleave', 'vehicles-core', () => (map.getCanvas().style.cursor = ''))
 
       readyRef.current = true
       // Exposed for debugging/E2E tests (queryRenderedFeatures etc.)
@@ -277,6 +300,23 @@ export default function MapView({
       map.setFilter(layer, filter)
     }
   }, [modeFilter])
+
+  // Selected route: highlight it and dim the rest of the network
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+    map.setFilter('shapes-selected', ['==', ['get', 'routeId'], selectedRouteId ?? ''])
+    const dim = selectedRouteId ? 0.12 : null
+    map.setPaintProperty('shapes-line', 'line-opacity', dim ?? 0.45)
+    map.setPaintProperty('shapes-alert', 'line-opacity', dim ?? 0.9)
+  }, [selectedRouteId])
+
+  // Camera focus bounds (e.g. when a line is selected)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !readyRef.current || !focusBounds) return
+    map.fitBounds(focusBounds, { padding: 60, maxZoom: 15, duration: 700 })
+  }, [focusBounds])
 
   return <div ref={containerRef} className="map" />
 }

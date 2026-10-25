@@ -45,10 +45,23 @@ async function main() {
   const trips = parseGtfsCsv(read('trips.txt'))
   console.log('Parsing stops.txt ...')
   const stops = parseGtfsCsv(read('stops.txt'))
-  console.log('Parsing stop_times.txt (stop usage) ...')
+  console.log('Parsing stop_times.txt (stop usage + line sequences) ...')
   const usedStopIds = new Set()
-  for (const st of parseGtfsCsv(read('stop_times.txt'))) {
-    if (st.stop_id) usedStopIds.add(st.stop_id)
+  const tripStopIds = new Map() // trip_id -> [stop_id] in order
+  {
+    const text = read('stop_times.txt')
+    const lines = text.split('\n')
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i]
+      if (!line) continue
+      const tripId = line.slice(0, line.indexOf(','))
+      const stopId = nthCsvField(line, 3)
+      if (!tripId || !stopId) continue
+      usedStopIds.add(stopId)
+      const arr = tripStopIds.get(tripId)
+      if (arr) arr.push(stopId)
+      else tripStopIds.set(tripId, [stopId])
+    }
   }
   console.log('Parsing shapes.txt ...')
   const shapeRows = parseGtfsCsv(read('shapes.txt'))
@@ -152,12 +165,65 @@ async function main() {
     }
   }
 
+  // --- lines.json: per route/headsign stop sequences ---------------------
+  // This feed has no direction_id — headsigns (destinations) act as
+  // directions. Representative trip per headsign = the one visiting the
+  // most stops; stop ids resolve to deduplicated (merged) stop ids.
+  const stopIdToRep = new Map() // original stop_id -> representative stop_id
+  for (const members of clusters.values()) {
+    const repId = members[0].stop_id
+    for (const m of members) stopIdToRep.set(m.stop_id, repId)
+  }
+
+  const linesOut = {}
+  const headsignStats = new Map() // routeId|headsign -> { count, trips: [{stops, tripId}] }
+  for (const [tripId, t] of Object.entries(tripsOut)) {
+    const stopsCount = tripStopIds.get(tripId)?.length ?? 0
+    if (!stopsCount || !t.r) continue
+    const key = `${t.r}|${t.h || ''}`
+    let stat = headsignStats.get(key)
+    if (!stat) headsignStats.set(key, (stat = { count: 0, best: { stops: 0, tripId: null } }))
+    stat.count++
+    if (stopsCount > stat.best.stops) stat.best = { stops: stopsCount, tripId }
+  }
+  const byRoute = new Map() // routeId -> [{headsign, count, best}]
+  for (const [key, stat] of headsignStats) {
+    const pipe = key.indexOf('|')
+    const routeId = key.slice(0, pipe)
+    const headsign = key.slice(pipe + 1)
+    if (!byRoute.has(routeId)) byRoute.set(routeId, [])
+    byRoute.get(routeId).push({ headsign, count: stat.count, best: stat.best })
+  }
+  for (const [routeId, groups] of byRoute) {
+    linesOut[routeId] = {}
+    // Keep the most-served headsigns (usually outbound + inbound)
+    groups.sort((a, b) => b.count - a.count)
+    for (const g of groups.slice(0, 3)) {
+      const raw = tripStopIds.get(g.best.tripId) ?? []
+      const seq = []
+      let prev = null
+      for (const sid of raw) {
+        const rep = stopIdToRep.get(sid) ?? sid
+        if (rep !== prev) {
+          seq.push(rep)
+          prev = rep
+        }
+      }
+      linesOut[routeId][g.headsign || '—'] = {
+        trips: g.count,
+        n: seq.length,
+        stops: seq,
+      }
+    }
+  }
+
   await mkdir(OUT_DIR, { recursive: true })
   await Promise.all([
     writeFile(new URL('routes.json', OUT_DIR), JSON.stringify(routesOut)),
     writeFile(new URL('shapes.json', OUT_DIR), JSON.stringify(shapesOut)),
     writeFile(new URL('trips.json', OUT_DIR), JSON.stringify(tripsOut)),
     writeFile(new URL('stops.json', OUT_DIR), JSON.stringify(stopsOut)),
+    writeFile(new URL('lines.json', OUT_DIR), JSON.stringify(linesOut)),
     writeFile(
       new URL('meta.json', OUT_DIR),
       JSON.stringify(
@@ -170,6 +236,7 @@ async function main() {
             trips: Object.keys(tripsOut).length,
             shapes: Object.keys(shapesOut).length,
             stops: Object.keys(stopsOut).length,
+            lines: Object.keys(linesOut).length,
             shape_points_raw: raw,
             shape_points_kept: kept,
           },
@@ -188,6 +255,7 @@ async function main() {
   console.log(`  trips  : ${Object.keys(tripsOut).length}`)
   console.log(`  shapes : ${Object.keys(shapesOut).length}`)
   console.log(`  stops  : ${Object.keys(stopsOut).length} (from ${liveStops.length} in use; ${mergedPairs} close pairs merged, ${stops.filter((s) => s.stop_name).length - liveStops.length} dead dropped)`)
+  console.log(`  lines  : ${Object.keys(linesOut).length} route/direction sequences`)
   console.log(`  points : ${raw.toLocaleString()} -> ${kept.toLocaleString()} after simplification`)
 }
 
@@ -208,6 +276,18 @@ function distM(a, b) {
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(latA)) * Math.cos(toRad(Number(b.stop_lat))) * Math.sin(dLon / 2) ** 2
   return 2 * 6371000 * Math.asin(Math.sqrt(m))
+}
+
+/** Fast n-th (0-based) CSV field of a plain (unquoted) line. */
+function nthCsvField(line, n) {
+  let start = 0
+  for (let f = 0; f < n; f++) {
+    const next = line.indexOf(',', start)
+    if (next === -1) return null
+    start = next + 1
+  }
+  const end = line.indexOf(',', start)
+  return end === -1 ? line.slice(start).trim() : line.slice(start, end)
 }
 
 /** Minimal quoted-CSV parser (GTFS files are simple quoted CSVs). */

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import MapView from './components/MapView.jsx'
 import StopSearch from './components/StopSearch.jsx'
 import AlertsPanel from './components/AlertsPanel.jsx'
+import LineExplorer from './components/LineExplorer.jsx'
 import {
   MODES,
   RT_URLS,
@@ -29,6 +30,7 @@ export default function App() {
   const [vehiclesFC, setVehiclesFC] = useState(null)
   const [arrivalsIndex, setArrivalsIndex] = useState(null)
   const [selectedStopId, setSelectedStopId] = useState(null)
+  const [selectedRouteId, setSelectedRouteId] = useState(null)
   const [modeFilter, setModeFilter] = useState('all')
   const [alerts, setAlerts] = useState(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
@@ -39,15 +41,15 @@ export default function App() {
     let cancelled = false
     ;(async () => {
       try {
-        const [routes, trips, shapes, stops, meta] = await Promise.all(
-          ['routes', 'trips', 'shapes', 'stops', 'meta'].map((n) =>
+        const [routes, trips, shapes, stops, lines, meta] = await Promise.all(
+          ['routes', 'trips', 'shapes', 'stops', 'lines', 'meta'].map((n) =>
             fetch(`${import.meta.env.BASE_URL}data/${n}.json`).then((r) => {
               if (!r.ok) throw new Error(`${n}.json: HTTP ${r.status} — run "npm run prepare-data"`)
               return r.json()
             }),
           ),
         )
-        if (!cancelled) setStaticData({ routes, trips, shapes, stops, meta })
+        if (!cancelled) setStaticData({ routes, trips, shapes, stops, lines, meta })
       } catch (err) {
         if (!cancelled) setStatus((s) => ({ ...s, state: 'error', message: String(err.message || err) }))
       }
@@ -115,6 +117,21 @@ export default function App() {
       clearTimeout(timer)
     }
   }, [])
+
+  // Camera bounds of the selected line (from its stop coordinates)
+  const routeFocusBounds = useMemo(() => {
+    if (!selectedRouteId || !staticData) return null
+    const coords = Object.values(staticData.lines[selectedRouteId] ?? {}).flatMap((d) =>
+      d.stops.map((id) => staticData.stops[id]).filter(Boolean).map((s) => [s.x, s.y]),
+    )
+    if (coords.length === 0) return null
+    const xs = coords.map((c) => c[0])
+    const ys = coords.map((c) => c[1])
+    return [
+      [Math.min(...xs), Math.min(...ys)],
+      [Math.max(...xs), Math.max(...ys)],
+    ]
+  }, [selectedRouteId, staticData])
 
   const shapesFC = useMemo(() => {
     if (!staticData) return null
@@ -206,10 +223,29 @@ export default function App() {
           arrivals={arrivals}
           onSelectStop={setSelectedStopId}
           onStopClose={() => setSelectedStopId(null)}
+          selectedRouteId={selectedRouteId}
+          focusBounds={routeFocusBounds}
+          onRouteSelect={setSelectedRouteId}
           arrivalsIndex={arrivalsIndex}
         />
 
-        {alertsOpen && staticData && (
+        {selectedRouteId && staticData && (
+          <div className="alerts-wrap">
+            <LineExplorer
+              routeId={selectedRouteId}
+              route={staticData.routes[selectedRouteId]}
+              lines={staticData.lines}
+              stops={staticData.stops}
+              trips={staticData.trips}
+              arrivalsIndex={arrivalsIndex}
+              alerts={alerts}
+              onSelectStop={setSelectedStopId}
+              onClose={() => setSelectedRouteId(null)}
+            />
+          </div>
+        )}
+
+        {alertsOpen && staticData && !selectedRouteId && (
           <div className="alerts-wrap">
             <AlertsPanel alerts={alerts ?? []} routes={staticData.routes} onClose={() => setAlertsOpen(false)} />
           </div>

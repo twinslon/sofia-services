@@ -223,6 +223,7 @@ export function buildShapeFeatures({ routes, trips, shapes }, alertedRoutes) {
         shapeId,
         mode: meta.mode,
         color: meta.color,
+        routeId: meta.routeId,
         alert: alertedRoutes ? alertedRoutes.has(meta.routeId) : false,
       },
     })
