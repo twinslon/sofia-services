@@ -83,6 +83,21 @@ export default function MapView({
         },
       })
 
+      // Lines with active service alerts — amber dashed overlay
+      map.addLayer({
+        id: 'shapes-alert',
+        type: 'line',
+        source: 'shapes',
+        filter: ['==', ['get', 'alert'], true],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': '#d29922',
+          'line-opacity': 0.9,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.6, 14, 3],
+          'line-dasharray': [2, 1.4],
+        },
+      })
+
       // Bold stop circles — bigger than vehicles
       map.addLayer({
         id: 'stops-dot',
@@ -258,7 +273,7 @@ export default function MapView({
     const map = mapRef.current
     if (!map || !readyRef.current) return
     const filter = modeFilter === 'all' ? null : ['==', ['get', 'mode'], modeFilter]
-    for (const layer of ['shapes-line', 'vehicles-halo', 'vehicles-core', 'vehicles-label']) {
+    for (const layer of ['shapes-line', 'shapes-alert', 'vehicles-halo', 'vehicles-core', 'vehicles-label']) {
       map.setFilter(layer, filter)
     }
   }, [modeFilter])

@@ -36,6 +36,18 @@ export const MODES = {
 
 export const SOFIA_CENTER = [23.3219, 42.6977]
 
+/** GTFS-RT cause/effect enum labels */
+export const ALERT_CAUSES = {
+  1: 'Unknown', 2: 'Other', 3: 'Technical problem', 4: 'Strike', 5: 'Demonstration',
+  6: 'Accident', 7: 'Holiday', 8: 'Weather', 9: 'Maintenance', 10: 'Construction',
+  11: 'Police activity', 12: 'Medical emergency',
+}
+export const ALERT_EFFECTS = {
+  1: 'No service', 2: 'Reduced service', 3: 'Delays', 4: 'Detour',
+  5: 'Extra service', 6: 'Modified service', 7: 'Stop moved', 8: 'Other',
+  9: 'Notice', 10: 'Accessibility issue', 11: 'No effect',
+}
+
 /** Fetch + decode a GTFS-RT feed into a plain entity list. */
 export async function fetchRealtimeFeed(url) {
   const res = await fetch(url, { cache: 'no-store' })
@@ -68,6 +80,50 @@ export function buildArrivalsIndex(entities) {
     }
   }
   return { byStop, byTrip }
+}
+
+/** Normalize decoded alert entities into plain-data alerts. */
+export function extractAlerts(entities) {
+  const alerts = []
+  for (const e of entities) {
+    const a = e.alert
+    if (!a) continue
+    const text = pickAlertText(a.descriptionText) || pickAlertText(a.headerText)
+    if (!text) continue
+    const period = a.activePeriod?.[0]
+    alerts.push({
+      id: e.id,
+      routeIds: [...new Set((a.informedEntity ?? []).map((i) => i.routeId).filter(Boolean))],
+      cause: a.cause ?? 0,
+      effect: a.effect ?? 0,
+      start: period?.start ? Number(period.start) : null,
+      end: period?.end ? Number(period.end) : null,
+      text: stripHtml(text),
+    })
+  }
+  return alerts
+}
+
+function pickAlertText(t) {
+  const tr = t?.translation ?? []
+  return (tr.find((x) => x.text?.trim()) ?? tr[0])?.text ?? null
+}
+
+/** Alert bodies arrive as HTML — reduce to clean plain text. */
+function stripHtml(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  return (doc.body?.textContent ?? '').replace(/\s+/g, ' ').trim()
+}
+
+/** "13 Oct – 3 Nov" / "from 13 Oct" / "until 3 Nov" */
+export function formatPeriod({ start, end }) {
+  const fmt = { day: 'numeric', month: 'short' }
+  const from = start ? new Date(start * 1000).toLocaleDateString('en-GB', fmt) : null
+  const to = end ? new Date(end * 1000).toLocaleDateString('en-GB', fmt) : null
+  if (from && to) return `${from} – ${to}`
+  if (from) return `from ${from}`
+  if (to) return `until ${to}`
+  return ''
 }
 
 /** Upcoming arrivals at a stop (aggregates merged stop ids), enriched with static GTFS. */
@@ -141,9 +197,10 @@ export function buildVehicleFeatures(vehicles, { routes, trips }) {
   return { type: 'FeatureCollection', features }
 }
 
-/** Build the route-shape GeoJSON FeatureCollection from static GTFS. */
-export function buildShapeFeatures({ routes, trips, shapes }) {
-  // shape_id -> { modes:Set, color, line } (a shape may be shared; take first)
+/** Build the route-shape GeoJSON FeatureCollection from static GTFS.
+ * `alertedRoutes` (Set of route_id) flags shapes of lines with active alerts. */
+export function buildShapeFeatures({ routes, trips, shapes }, alertedRoutes) {
+  // shape_id -> { mode, color, routeId } (a shape may be shared; take first)
   const shapeMeta = new Map()
   for (const trip of Object.values(trips)) {
     if (!trip.s || shapeMeta.has(trip.s)) continue
@@ -152,6 +209,7 @@ export function buildShapeFeatures({ routes, trips, shapes }) {
     shapeMeta.set(trip.s, {
       mode: ROUTE_TYPE_TO_MODE[route.t] ?? 'other',
       color: route.c ? `#${route.c}` : null,
+      routeId: trip.r,
     })
   }
   const features = []
@@ -161,7 +219,12 @@ export function buildShapeFeatures({ routes, trips, shapes }) {
     features.push({
       type: 'Feature',
       geometry: { type: 'LineString', coordinates: coords },
-      properties: { shapeId, mode: meta.mode, color: meta.color },
+      properties: {
+        shapeId,
+        mode: meta.mode,
+        color: meta.color,
+        alert: alertedRoutes ? alertedRoutes.has(meta.routeId) : false,
+      },
     })
   }
   return { type: 'FeatureCollection', features }
