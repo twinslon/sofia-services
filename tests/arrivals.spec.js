@@ -37,6 +37,36 @@ test.describe('arrivals board popup', () => {
     expect(cleared).toBe('')
   })
 
+  test('clicking a stop dot on the map opens its board', async ({ page }) => {
+    await waitForApp(page)
+    // Zoom into a dense area so stops are visible, then click one
+    const clicked = await page.evaluate(() => {
+      const m = window.__map
+      m.setZoom(14.5)
+      return new Promise((resolve) => {
+        const done = (v) => resolve(v)
+        const t = setTimeout(() => done(null), 15000)
+        m.once('idle', () => {
+          clearTimeout(t)
+          const f = m.queryRenderedFeatures({ layers: ['stops-dot'] })[0]
+          if (!f) return done(null)
+          const lngLat = f.geometry.coordinates
+          // Delegated layer handlers query features at the event point themselves
+          m.fire('click', { lngLat, point: m.project(lngLat) })
+          done(f.properties.stop_id)
+        })
+      })
+    })
+    test.skip(!clicked, 'no stops rendered on screen')
+
+    const popup = page.locator('.maplibregl-popup .board-popup')
+    await expect(popup).toBeVisible()
+    const highlighted = await page.evaluate(() => window.__map.getLayer('stops-selected')?.filter?.[2])
+    expect(highlighted).toBe(clicked)
+    await page.locator('.maplibregl-popup-close-button').click()
+    await expect(page.locator('.maplibregl-popup')).toHaveCount(0)
+  })
+
   test('search by stop code works', async ({ page }) => {
     await waitForApp(page)
     // 1338 = bus stop near NDK used in API docs; zero-padded form not required

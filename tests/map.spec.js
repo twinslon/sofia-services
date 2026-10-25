@@ -31,20 +31,20 @@ test.describe('map rendering', () => {
 
   test('vehicle click opens popup with line, headsign and next stops', async ({ page }) => {
     await waitForApp(page)
-    const coords = await page.evaluate(() => {
-      const f = window.__map.queryRenderedFeatures({ layers: ['vehicles-core'] })[0]
-      return f ? { lngLat: f.geometry.coordinates, tripId: f.properties.tripId } : null
+    const fired = await page.evaluate(() => {
+      const m = window.__map
+      const f = m.queryRenderedFeatures({ layers: ['vehicles-core'] })[0]
+      if (!f) return null
+      const lngLat = f.geometry.coordinates
+      m.fire('click', { lngLat, point: m.project(lngLat) })
+      return { tripId: f.properties.tripId, line: f.properties.line }
     })
-    test.skip(!coords, 'no vehicles on screen right now')
+    test.skip(!fired, 'no vehicles on screen right now')
 
-    await page.evaluate(({ lngLat }) => {
-      window.__map.fire('click', { lngLat, point: window.__map.project(lngLat) })
-    }, coords)
-
-    const popup = page.locator('.maplibregl-popup')
+    const popup = page.locator('.maplibregl-popup .veh-popup')
     await expect(popup).toBeVisible()
     await expect(popup.locator('.line-badge')).toBeVisible()
-    if (coords.tripId) {
+    if (fired.tripId) {
       // If this trip has updates, the popup lists its next stops
       const next = popup.locator('.veh-next li')
       if ((await next.count()) > 0) {

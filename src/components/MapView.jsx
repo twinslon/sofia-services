@@ -33,7 +33,7 @@ export default function MapView({
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const readyRef = useRef(false)
-  const dataRef = useRef({ shapes: null, vehicles: null })
+  const dataRef = useRef({ shapes: null, vehicles: null, stops: null })
   const propsRef = useRef({ stopsData, arrivalsIndex })
   const popupRef = useRef(null) // vehicle popup (transient)
   const boardRef = useRef(null) // stop board popup (persistent while selected)
@@ -67,7 +67,10 @@ export default function MapView({
         type: 'geojson',
         data: dataRef.current.vehicles ?? emptyFC(),
       })
-      map.addSource('stops', { type: 'geojson', data: emptyFC() })
+      map.addSource('stops', {
+        type: 'geojson',
+        data: dataRef.current.stops ?? emptyFC(),
+      })
 
       map.addLayer({
         id: 'shapes-line',
@@ -150,6 +153,9 @@ export default function MapView({
 
       // Interactions
       map.on('click', 'stops-dot', (e) => {
+        // Vehicles take precedence when a stop and vehicle overlap
+        const vehicles = map.queryRenderedFeatures(e.point, { layers: ['vehicles-core'] })
+        if (vehicles.length > 0) return
         const f = e.features?.[0]
         if (f?.properties?.stop_id) callbacksRef.current.onSelectStop(f.properties.stop_id)
       })
@@ -175,6 +181,7 @@ export default function MapView({
       // Flush anything that arrived before the map finished loading
       pushData('shapes', dataRef.current.shapes)
       pushData('vehicles', dataRef.current.vehicles)
+      pushData('stops', dataRef.current.stops)
     })
 
     return () => {
@@ -206,7 +213,9 @@ export default function MapView({
       geometry: { type: 'Point', coordinates: [s.x, s.y] },
       properties: { stop_id: stopId, name: s.n },
     }))
-    pushData('stops', { type: 'FeatureCollection', features })
+    const fc = { type: 'FeatureCollection', features }
+    dataRef.current.stops = fc
+    pushData('stops', fc)
   }, [stopsData])
 
   // Selected stop: highlight, fly to, and open/update its board popup
