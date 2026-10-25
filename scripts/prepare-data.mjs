@@ -20,6 +20,9 @@ const OUT_DIR = new URL('../public/data/', import.meta.url)
 // ~3m tolerance in degrees for Douglas-Peucker simplification of shapes
 const SIMPLIFY_TOLERANCE = 0.00003
 const FIXED = 5 // decimal places for coordinates (~1.1 m)
+// Same-name stops closer than this merge into one board (directional pairs etc.)
+// Test invariant checks 60m, so keep a buffer above it for coordinate rounding
+const STOP_MERGE_RADIUS_M = 75
 
 main().catch((err) => {
   console.error(err)
@@ -42,6 +45,11 @@ async function main() {
   const trips = parseGtfsCsv(read('trips.txt'))
   console.log('Parsing stops.txt ...')
   const stops = parseGtfsCsv(read('stops.txt'))
+  console.log('Parsing stop_times.txt (stop usage) ...')
+  const usedStopIds = new Set()
+  for (const st of parseGtfsCsv(read('stop_times.txt'))) {
+    if (st.stop_id) usedStopIds.add(st.stop_id)
+  }
   console.log('Parsing shapes.txt ...')
   const shapeRows = parseGtfsCsv(read('shapes.txt'))
 
@@ -85,16 +93,62 @@ async function main() {
     }
   }
 
-  // --- stops.json: stop_id -> { code, name, lat, lon } ------------------
+  // --- stops.json: deduplicated, in-use stops ---------------------------
+  // 1) keep only named stops referenced by at least one trip (dead stops
+  //    never get arrivals and clutter the map)
+  // 2) merge same-name clusters within STOP_MERGE_RADIUS_M into one entry
+  //    with an `ids` list — the board aggregates arrivals across members
+  const liveStops = stops.filter(
+    (s) => s.stop_name && s.location_type !== '1' && usedStopIds.has(s.stop_id),
+  )
+
+  const byName = new Map()
+  const normName = (n) => n.trim().replace(/\s+/g, ' ')
+  for (const s of liveStops) {
+    const key = normName(s.stop_name)
+    if (!byName.has(key)) byName.set(key, [])
+    byName.get(key).push(s)
+  }
+
+  const parent = new Map() // union-find
+  const find = (x) => (parent.get(x) === x ? x : (parent.set(x, find(parent.get(x)))), parent.get(x))
+  const union = (a, b) => {
+    const [ra, rb] = [find(a), find(b)]
+    if (ra !== rb) parent.set(ra, rb)
+  }
+  for (const s of liveStops) parent.set(s.stop_id, s.stop_id)
+
+  let mergedPairs = 0
+  for (const group of byName.values()) {
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        if (distM(group[i], group[j]) < STOP_MERGE_RADIUS_M) {
+          union(group[i].stop_id, group[j].stop_id)
+          mergedPairs++
+        }
+      }
+    }
+  }
+
+  const clusters = new Map() // root -> [stops]
+  for (const s of liveStops) {
+    const root = find(s.stop_id)
+    if (!clusters.has(root)) clusters.set(root, [])
+    clusters.get(root).push(s)
+  }
+
   const stopsOut = {}
-  for (const s of stops) {
-    if (s.location_type === '1') continue // skip station parents; keep platforms
-    if (!s.stop_name) continue // unnamed path/entrance nodes — not searchable
-    stopsOut[s.stop_id] = {
-      c: s.stop_code || '',
-      n: s.stop_name,
-      y: round(Number(s.stop_lat)),
-      x: round(Number(s.stop_lon)),
+  for (const members of clusters.values()) {
+    // deterministic representative: lowest numeric code
+    members.sort((a, b) => (Number(a.stop_code) || 1e9) - (Number(b.stop_code) || 1e9))
+    const rep = members[0]
+    stopsOut[rep.stop_id] = {
+      c: rep.stop_code || '',
+      cs: [...new Set(members.map((m) => m.stop_code).filter(Boolean))],
+      n: rep.stop_name,
+      y: round(Number(rep.stop_lat)),
+      x: round(Number(rep.stop_lon)),
+      ids: members.map((m) => m.stop_id),
     }
   }
 
@@ -133,7 +187,7 @@ async function main() {
   console.log(`  routes : ${Object.keys(routesOut).length}  (by type: ${JSON.stringify(typeCounts)})`)
   console.log(`  trips  : ${Object.keys(tripsOut).length}`)
   console.log(`  shapes : ${Object.keys(shapesOut).length}`)
-  console.log(`  stops  : ${Object.keys(stopsOut).length}`)
+  console.log(`  stops  : ${Object.keys(stopsOut).length} (from ${liveStops.length} in use; ${mergedPairs} close pairs merged, ${stops.filter((s) => s.stop_name).length - liveStops.length} dead dropped)`)
   console.log(`  points : ${raw.toLocaleString()} -> ${kept.toLocaleString()} after simplification`)
 }
 
@@ -141,6 +195,19 @@ async function main() {
 
 function round(n) {
   return Number(n.toFixed(FIXED))
+}
+
+/** Haversine distance in meters between two GTFS stop rows. */
+function distM(a, b) {
+  const toRad = (d) => (d * Math.PI) / 180
+  const latA = Number(a.stop_lat)
+  const lonA = Number(a.stop_lon)
+  const dLat = toRad(Number(b.stop_lat) - latA)
+  const dLon = toRad(Number(b.stop_lon) - lonA)
+  const m =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(latA)) * Math.cos(toRad(Number(b.stop_lat))) * Math.sin(dLon / 2) ** 2
+  return 2 * 6371000 * Math.asin(Math.sqrt(m))
 }
 
 /** Minimal quoted-CSV parser (GTFS files are simple quoted CSVs). */

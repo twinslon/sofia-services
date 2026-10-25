@@ -14,10 +14,10 @@ export default function StopSearch({ stops, onSelect }) {
     for (const [stopId, s] of Object.entries(stops)) {
       const name = s.n.toLowerCase()
       let score = -1
-      if (s.c && s.c.replace(/^0+/, '') === code) score = 0
+      if (s.cs?.some((c) => c.replace(/^0+/, '') === code)) score = 0
       else if (name.startsWith(q)) score = 1
       else if (name.includes(q)) score = 2
-      if (score >= 0) scored.push({ score, stopId, name: s.n, code: s.c })
+      if (score >= 0) scored.push({ score, stopId, name: s.n, code: s.cs?.join(' · ') || s.c })
     }
     scored.sort((a, b) => a.score - b.score || a.name.localeCompare(b.name))
     return scored.slice(0, 8)

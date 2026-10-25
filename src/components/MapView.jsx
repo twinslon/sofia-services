@@ -283,7 +283,7 @@ function boardPopupHTML(stop, arrivals) {
     <div class="board-popup" data-count="${arrivals?.length ?? 0}">
       <div class="board-title">
         <h2>${escapeHtml(stop.n)}</h2>
-        ${stop.c ? `<span class="stop-code">${escapeHtml(stop.c)}</span>` : ''}
+        ${stop.cs?.length ? `<span class="stop-code">${escapeHtml(stop.cs.join(' · '))}</span>` : ''}
       </div>
       ${body ?? `<ul class="board-list">${rows}</ul>`}
       <div class="board-footer">Live predictions · Center for Urban Mobility</div>

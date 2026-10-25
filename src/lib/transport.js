@@ -70,9 +70,10 @@ export function buildArrivalsIndex(entities) {
   return { byStop, byTrip }
 }
 
-/** Upcoming arrivals at a stop, enriched with static GTFS. */
-export function arrivalsForStop(stopId, index, { routes, trips }, nowSec = Date.now() / 1000) {
-  const list = index?.byStop?.get(stopId) ?? []
+/** Upcoming arrivals at a stop (aggregates merged stop ids), enriched with static GTFS. */
+export function arrivalsForStop(stop, index, { routes, trips }, nowSec = Date.now() / 1000) {
+  const ids = stop?.ids?.length ? stop.ids : [stop?.id]
+  const list = ids.flatMap((id) => index?.byStop?.get(id) ?? [])
   return list
     .map(({ tripId, routeId, time }) => {
       const route = routes[trips[tripId]?.r ?? routeId]

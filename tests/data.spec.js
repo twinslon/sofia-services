@@ -51,17 +51,49 @@ test.describe('prepared GTFS extracts', () => {
     expect(points).toBeGreaterThan(1000)
   })
 
-  test('stops: 4k+ with code, name and Sofia-bounds coordinates', () => {
+  test('stops: deduplicated, in-use, with merged member ids', () => {
     const stops = data('stops')
     const ids = Object.keys(stops)
-    expect(ids.length).toBeGreaterThan(4000)
+    expect(ids.length).toBeGreaterThan(1500)
+    expect(ids.length).toBeLessThan(3500)
+
+    const toRad = (d) => (d * Math.PI) / 180
+    const distM = (a, b) => {
+      const dLat = toRad(b.y - a.y)
+      const dLon = toRad(b.x - a.x)
+      const m =
+        Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.y)) * Math.cos(toRad(b.y)) * Math.sin(dLon / 2) ** 2
+      return 2 * 6371000 * Math.asin(Math.sqrt(m))
+    }
+
+    const entries = Object.values(stops)
     let checked = 0
-    for (const [id, s] of Object.entries(stops)) {
-      if (!s.n) throw new Error(`stop ${id} has no name`)
+    for (const s of entries) {
+      if (!s.n) throw new Error('stop has no name')
+      if (!s.ids?.length || !s.ids.includes(Object.keys(stops).find((k) => stops[k] === s))) {
+        throw new Error('stop missing its own id in ids[]')
+      }
       if (!(s.x > 22.8 && s.x < 23.8 && s.y > 42.4 && s.y < 43.05)) {
-        throw new Error(`stop ${id} out of bounds: ${s.x},${s.y}`)
+        throw new Error(`stop out of bounds: ${s.x},${s.y}`)
       }
       if (++checked > 500) break
+    }
+
+    // Invariant: no two same-name stops within the merge radius
+    const byName = new Map()
+    for (const s of entries) {
+      const key = s.n.trim()
+      if (!byName.has(key)) byName.set(key, [])
+      byName.get(key).push(s)
+    }
+    for (const ss of byName.values()) {
+      for (let i = 0; i < ss.length; i++) {
+        for (let j = i + 1; j < ss.length; j++) {
+          if (distM(ss[i], ss[j]) < 60) {
+            throw new Error(`same-name stops within 60m survived dedup: ${ss[i].n}`)
+          }
+        }
+      }
     }
   })
 

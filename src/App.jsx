@@ -108,11 +108,11 @@ export default function App() {
   }, [selectedStopId, staticData])
 
   const arrivals = useMemo(() => {
-    if (!selectedStopId || !arrivalsIndex || !staticData) return null
+    if (!selectedStop || !arrivalsIndex || !staticData) return null
     // Re-derive whenever a poll lands (status.updatedAt changes) to refresh ETAs
-    return arrivalsForStop(selectedStopId, arrivalsIndex, staticData)
+    return arrivalsForStop(selectedStop, arrivalsIndex, staticData)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStopId, arrivalsIndex, staticData, status.updatedAt])
+  }, [selectedStop, arrivalsIndex, staticData, status.updatedAt])
 
   return (
     <div className="app">
