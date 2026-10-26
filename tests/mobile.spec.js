@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { waitForApp } from './helpers.js'
+import { clickALine, waitForApp } from './helpers.js'
 
 // Phone-class viewport for the whole file
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
@@ -25,22 +25,7 @@ test.describe('mobile layout', () => {
   test('line explorer opens as a bottom sheet', async ({ page }) => {
     await waitForApp(page)
 
-    const selected = await page.evaluate(() => {
-      const m = window.__map
-      for (const f of m.queryRenderedFeatures({ layers: ['shapes-line'] }).slice(0, 40)) {
-        const coords = f.geometry.coordinates
-        for (let i = 1; i < coords.length; i += 3) {
-          const [lng, lat] = coords[i]
-          if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
-          const point = m.project(coords[i])
-          if (m.queryRenderedFeatures(point, { layers: ['stops-dot', 'vehicles-core'] }).length === 0) {
-            m.fire('click', { lngLat: coords[i], point })
-            return true
-          }
-        }
-      }
-      return false
-    })
+    const selected = await clickALine(page)
     test.skip(!selected, 'no clear line spot found')
 
     const sheet = page.locator('.line-panel')

@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-10-25T07:43:25.873Z",
+  "generated_at": "2026-10-26T17:26:41.734Z",
   "source": "https://gtfs.sofiatraffic.bg/api/v1/static",
   "license": "CC-BY-4.0, Center for Urban Mobility (Sofia Traffic)",
   "counts": {
     "routes": 204,
-    "trips": 29397,
+    "trips": 29156,
     "shapes": 1931,
     "stops": 1891,
     "lines": 142,

@@ -3,7 +3,7 @@ import { waitForApp } from './helpers.js'
 
 test.describe('smooth vehicle movement', () => {
   test('vehicles glide between polls instead of jumping', async ({ page }) => {
-    await waitForApp(page)
+    await waitForApp(page, { animate: true })
 
     const result = await page.evaluate(
       () =>

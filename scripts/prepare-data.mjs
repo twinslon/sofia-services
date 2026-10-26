@@ -220,12 +220,21 @@ async function main() {
     }
   }
 
+  // stop aliases: original stop_id -> representative stop_id (for lookups
+  // against RT feed stop ids, which reference original ids)
+  const stopAliases = {}
+  for (const members of clusters.values()) {
+    const repId = members[0].stop_id
+    for (const m of members) if (m.stop_id !== repId) stopAliases[m.stop_id] = repId
+  }
+
   await mkdir(OUT_DIR, { recursive: true })
   await Promise.all([
     writeFile(new URL('routes.json', OUT_DIR), JSON.stringify(routesOut)),
     writeFile(new URL('shapes.json', OUT_DIR), JSON.stringify(shapesOut)),
     writeFile(new URL('trips.json', OUT_DIR), JSON.stringify(tripsOut)),
     writeFile(new URL('stops.json', OUT_DIR), JSON.stringify(stopsOut)),
+    writeFile(new URL('stop-aliases.json', OUT_DIR), JSON.stringify(stopAliases)),
     writeFile(new URL('lines.json', OUT_DIR), JSON.stringify(linesOut)),
     writeFile(
       new URL('meta.json', OUT_DIR),

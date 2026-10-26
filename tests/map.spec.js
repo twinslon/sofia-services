@@ -5,7 +5,8 @@ test.describe('map rendering', () => {
   test('canvas is full-size with tiles and layers loaded', async ({ page }) => {
     await expectNoErrors(page, async () => {
       await waitForApp(page)
-      // Glyph tiles load lazily as new vehicle labels appear — poll until settled
+      // Glyph tiles load lazily (and re-load as animated labels change) —
+      // wait until tiles have settled at least once
       await page.waitForFunction(() => window.__map.areTilesLoaded() === true, undefined, {
         timeout: 30_000,
       })
@@ -13,7 +14,6 @@ test.describe('map rendering', () => {
 
       expect(stats.canvasW).toBeGreaterThan(1000)
       expect(stats.canvasH).toBeGreaterThan(600)
-      expect(stats.tilesLoaded).toBe(true)
     })
   })
 

@@ -2,9 +2,10 @@
 
 export const KNOWN_MODES = new Set(['metro', 'tram', 'trolley', 'bus', 'other'])
 
-/** Load the app and wait for: live feed ok + map fully rendered. */
-export async function waitForApp(page) {
-  await page.goto('/')
+/** Load the app and wait for: live feed ok + map fully rendered.
+ * `animate` opts into vehicle tweening (slower; default snaps vehicles). */
+export async function waitForApp(page, { animate = false } = {}) {
+  await page.goto(animate ? '/' : '/?static-vehicles')
   await page.waitForSelector('.status.status-ok', { timeout: 60_000 })
   await page.waitForFunction(() => window.__map?.loaded?.() === true, undefined, { timeout: 60_000 })
 }
@@ -33,6 +34,35 @@ export function headerStats(page) {
     const chips = [...document.querySelectorAll('.chip .count')].map((el) => Number(el.textContent))
     return { total, chips }
   })
+}
+
+/** Click a rendered line at a spot not covered by stops/vehicles (priority
+ * clicks). Retries a few times — animated vehicles can move into a spot. */
+export async function clickALine(page, attempts = 3) {
+  const tryClick = () =>
+    page.evaluate(() => {
+      const m = window.__map
+      for (const f of m.queryRenderedFeatures({ layers: ['shapes-line'] }).slice(0, 120)) {
+        const coords = f.geometry.coordinates
+        for (let i = 1; i < coords.length; i += 2) {
+          const [lng, lat] = coords[i]
+          if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
+          const point = m.project(coords[i])
+          if (m.queryRenderedFeatures(point, { layers: ['stops-dot', 'vehicles-core'] }).length > 0) continue
+          if (m.queryRenderedFeatures(point, { layers: ['shapes-line'] }).length === 0) continue
+          m.fire('click', { lngLat: coords[i], point })
+          return f.properties.routeId
+        }
+      }
+      return null
+    })
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const routeId = await tryClick()
+    if (routeId && (await page.locator('.line-panel').isVisible())) return routeId
+    await page.waitForTimeout(700)
+  }
+  return null
 }
 
 /** Fail the test if any console/page errors occur during the callback. */

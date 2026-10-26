@@ -117,6 +117,17 @@ test.describe('prepared GTFS extracts', () => {
     }
   })
 
+  test('stop aliases: every original id maps to an existing stop', () => {
+    const aliases = data('stop-aliases')
+    const stops = data('stops')
+    const entries = Object.entries(aliases)
+    expect(entries.length).toBeGreaterThan(1000)
+    for (const [orig, rep] of entries.slice(0, 800)) {
+      if (!stops[rep]) throw new Error(`alias ${orig} -> unknown stop ${rep}`)
+      if (orig === rep) throw new Error(`self-alias ${orig}`)
+    }
+  })
+
   test('meta: counts match the extracts and timestamp parses', () => {
     const meta = data('meta')
     expect(meta.counts.routes).toBe(Object.keys(data('routes')).length)

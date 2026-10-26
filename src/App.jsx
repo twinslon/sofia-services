@@ -41,15 +41,23 @@ export default function App() {
     let cancelled = false
     ;(async () => {
       try {
-        const [routes, trips, shapes, stops, lines, meta] = await Promise.all(
-          ['routes', 'trips', 'shapes', 'stops', 'lines', 'meta'].map((n) =>
+        const [routes, trips, shapes, stops, aliases, lines, meta] = await Promise.all(
+          ['routes', 'trips', 'shapes', 'stops', 'stop-aliases', 'lines', 'meta'].map((n) =>
             fetch(`${import.meta.env.BASE_URL}data/${n}.json`).then((r) => {
               if (!r.ok) throw new Error(`${n}.json: HTTP ${r.status} — run "npm run prepare-data"`)
               return r.json()
             }),
           ),
         )
-        if (!cancelled) setStaticData({ routes, trips, shapes, stops, lines, meta })
+        if (!cancelled) {
+          // Flat lookup: original stop ids (RT feed) + representative ids -> stop entry
+          const stopsById = { ...stops }
+          for (const [orig, rep] of Object.entries(aliases)) {
+            const repStop = stops[rep]
+            if (repStop) stopsById[orig] = repStop
+          }
+          setStaticData({ routes, trips, shapes, stops, stopsById, lines, meta })
+        }
       } catch (err) {
         if (!cancelled) setStatus((s) => ({ ...s, state: 'error', message: String(err.message || err) }))
       }
@@ -219,6 +227,7 @@ export default function App() {
           vehiclesFC={vehiclesFC}
           modeFilter={modeFilter}
           stopsData={staticData?.stops}
+          stopsById={staticData?.stopsById}
           selectedStop={selectedStop}
           arrivals={arrivals}
           onSelectStop={setSelectedStopId}

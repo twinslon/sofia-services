@@ -12,9 +12,12 @@ const INK = '#1f2328'
 const MODE_COLOR_STOPS = Object.entries(MODES).map(([mode, m]) => [mode, m.color])
 
 // Vehicle animation: glide between polls; snap on GPS jumps / trip changes
+// Tests run with ?static-vehicles to skip the rAF loop (CPU-heavy under
+// software WebGL) — except the smooth-movement spec, which opts in.
 const VEHICLE_TWEEN_MS = 9500
 const VEHICLE_SNAP_M = 700
 const TWEEN_FPS_MS = 40
+const STATIC_VEHICLES = new URLSearchParams(globalThis.location?.search ?? '').has('static-vehicles')
 
 function roughMeters(a, b) {
   return Math.hypot((b[0] - a[0]) * 82000, (b[1] - a[1]) * 111000)
@@ -33,6 +36,7 @@ export default function MapView({
   vehiclesFC,
   modeFilter,
   stopsData,
+  stopsById,
   selectedStop,
   arrivals,
   onSelectStop,
@@ -46,12 +50,12 @@ export default function MapView({
   const mapRef = useRef(null)
   const readyRef = useRef(false)
   const dataRef = useRef({ shapes: null, vehicles: null, stops: null })
-  const propsRef = useRef({ stopsData, arrivalsIndex })
+  const propsRef = useRef({ stopsData, stopsById, arrivalsIndex })
   const popupRef = useRef(null) // vehicle popup (transient)
   const boardRef = useRef(null) // stop board popup (persistent while selected)
   const callbacksRef = useRef({ onSelectStop, onStopClose, onRouteSelect })
   callbacksRef.current = { onSelectStop, onStopClose, onRouteSelect }
-  propsRef.current = { stopsData, arrivalsIndex }
+  propsRef.current = { stopsData, stopsById, arrivalsIndex }
 
   const pushData = (which, fc) => {
     const map = mapRef.current
@@ -103,6 +107,13 @@ export default function MapView({
   const pushVehicles = (fc) => {
     if (!fc) return
     const st = animRef.current
+    if (STATIC_VEHICLES) {
+      if (st.raf) cancelAnimationFrame(st.raf)
+      st.targets = fc
+      st.current = new Map(fc.features.map((f) => [f.properties.id, f.geometry.coordinates]))
+      mapRef.current?.getSource('vehicles')?.setData(fc)
+      return
+    }
     st.targets = fc
     st.from = new Map(st.current)
     st.start = performance.now()
@@ -415,13 +426,14 @@ function arrivalsErrorOrEmpty(arrivals) {
 
 /** Popup content: line, headsign + the next stops of this trip. */
 function vehiclePopupHTML(props, ctx) {
-  const { stopsData, arrivalsIndex } = ctx
+  const { stopsById, arrivalsIndex } = ctx
   const color = MODES[props.mode]?.color ?? MODES.other.color
   const nextStops = (arrivalsIndex?.byTrip?.get(props.tripId) ?? [])
     .filter((s) => s.time * 1000 > Date.now() - 30_000)
     .slice(0, 3)
     .map((s) => {
-      const name = stopsData?.[s.stopId]?.n ?? s.stopId
+      // RT stop ids may be either representative or original (merged) ids
+      const name = stopsById?.[s.stopId]?.n ?? s.stopId
       return `<li>${escapeHtml(name)} <span class="eta">${formatEta(s.time - Date.now() / 1000)}</span></li>`
     })
   return `
