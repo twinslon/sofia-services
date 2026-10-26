@@ -58,13 +58,13 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 - [x] Stop deduplication (dead stops dropped, directional pairs merged)
 - [x] Light theme (OpenFreeMap positron + matching UI)
 - [x] GitHub Pages deployment — CI test gate, daily cron rebuild refreshes GTFS extracts
-- [x] E2E + data-integrity test suite (Playwright, 19 tests) and Chrome DevTools MCP debugging
+- [x] Mobile ergonomics — bottom-sheet panels, compact header, touch targets
+- [x] E2E + data-integrity test suite (Playwright, 22 tests) and Chrome DevTools MCP debugging
 
 ### Next up
 
-- [ ] Static timetables in the line explorer (full-day schedule from calendar_dates)
-- [ ] Mobile ergonomics — bottom-sheet layout for boards/panels on small screens
 - [ ] Smooth vehicle movement between polls (interpolate positions by bearing)
+- [ ] Static timetables in the line explorer (full-day schedule from calendar_dates)
 
 ### Later
 
