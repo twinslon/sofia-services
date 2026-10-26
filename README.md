@@ -59,11 +59,11 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 - [x] Light theme (OpenFreeMap positron + matching UI)
 - [x] GitHub Pages deployment — CI test gate, daily cron rebuild refreshes GTFS extracts
 - [x] Mobile ergonomics — bottom-sheet panels, compact header, touch targets
-- [x] E2E + data-integrity test suite (Playwright, 22 tests) and Chrome DevTools MCP debugging
+- [x] Smooth vehicle movement — positions tweened between polls (snap on GPS jumps)
+- [x] E2E + data-integrity test suite (Playwright, 23 tests) and Chrome DevTools MCP debugging
 
 ### Next up
 
-- [ ] Smooth vehicle movement between polls (interpolate positions by bearing)
 - [ ] Static timetables in the line explorer (full-day schedule from calendar_dates)
 
 ### Later

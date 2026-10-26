@@ -5,6 +5,10 @@ test.describe('map rendering', () => {
   test('canvas is full-size with tiles and layers loaded', async ({ page }) => {
     await expectNoErrors(page, async () => {
       await waitForApp(page)
+      // Glyph tiles load lazily as new vehicle labels appear — poll until settled
+      await page.waitForFunction(() => window.__map.areTilesLoaded() === true, undefined, {
+        timeout: 30_000,
+      })
       const stats = await mapStats(page)
 
       expect(stats.canvasW).toBeGreaterThan(1000)

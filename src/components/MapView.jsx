@@ -11,6 +11,15 @@ const INK = '#1f2328'
 
 const MODE_COLOR_STOPS = Object.entries(MODES).map(([mode, m]) => [mode, m.color])
 
+// Vehicle animation: glide between polls; snap on GPS jumps / trip changes
+const VEHICLE_TWEEN_MS = 9500
+const VEHICLE_SNAP_M = 700
+const TWEEN_FPS_MS = 40
+
+function roughMeters(a, b) {
+  return Math.hypot((b[0] - a[0]) * 82000, (b[1] - a[1]) * 111000)
+}
+
 function colorByMode(fallback) {
   return ['coalesce', ['get', 'color'], ['match', ['get', 'mode'], ...MODE_COLOR_STOPS.flat(), fallback]]
 }
@@ -48,6 +57,57 @@ export default function MapView({
     const map = mapRef.current
     if (!map || !readyRef.current || !fc) return
     map.getSource(which)?.setData(fc)
+  }
+
+  // ── Vehicle tweening ────────────────────────────────────────────────
+  // On each new batch we animate from the currently displayed positions
+  // to the new targets, so vehicles glide instead of jumping every poll.
+  const animRef = useRef({ targets: null, from: new Map(), current: new Map(), raf: 0, start: 0, last: 0 })
+
+  const tweenStep = () => {
+    const st = animRef.current
+    st.raf = 0
+    const targets = st.targets
+    if (!targets || !mapRef.current) return
+    const now = performance.now()
+    const t = Math.min(1, (now - st.start) / VEHICLE_TWEEN_MS)
+    if (now - st.last < TWEEN_FPS_MS && t < 1) {
+      st.raf = requestAnimationFrame(tweenStep)
+      return
+    }
+    st.last = now
+    const features = new Array(targets.features.length)
+    const seen = new Set()
+    for (let i = 0; i < targets.features.length; i++) {
+      const f = targets.features[i]
+      const id = f.properties.id
+      seen.add(id)
+      const to = f.geometry.coordinates
+      const fr = st.from.get(id)
+      // Snap (no glide) when there is no previous position or the vehicle
+      // "jumped" — a GPS glitch or a different trip on the same line
+      if (fr && roughMeters(fr, to) < VEHICLE_SNAP_M && t < 1) {
+        const coords = [fr[0] + (to[0] - fr[0]) * t, fr[1] + (to[1] - fr[1]) * t]
+        st.current.set(id, coords)
+        features[i] = { ...f, geometry: { type: 'Point', coordinates: coords } }
+      } else {
+        st.current.set(id, to)
+        features[i] = f
+      }
+    }
+    for (const id of st.current.keys()) if (!seen.has(id)) st.current.delete(id)
+    mapRef.current.getSource('vehicles')?.setData({ type: 'FeatureCollection', features })
+    if (t < 1) st.raf = requestAnimationFrame(tweenStep)
+  }
+
+  const pushVehicles = (fc) => {
+    if (!fc) return
+    const st = animRef.current
+    st.targets = fc
+    st.from = new Map(st.current)
+    st.start = performance.now()
+    if (st.raf) cancelAnimationFrame(st.raf)
+    st.raf = requestAnimationFrame(tweenStep)
   }
 
   // Create the map once
@@ -218,12 +278,13 @@ export default function MapView({
       map.resize()
       // Flush anything that arrived before the map finished loading
       pushData('shapes', dataRef.current.shapes)
-      pushData('vehicles', dataRef.current.vehicles)
       pushData('stops', dataRef.current.stops)
+      pushVehicles(dataRef.current.vehicles)
     })
 
     return () => {
       readyRef.current = false
+      cancelAnimationFrame(animRef.current.raf)
       popupRef.current?.remove()
       boardRef.current?.remove()
       map.remove()
@@ -240,7 +301,8 @@ export default function MapView({
 
   useEffect(() => {
     dataRef.current.vehicles = vehiclesFC
-    pushData('vehicles', vehiclesFC)
+    if (!mapRef.current || !readyRef.current) return
+    pushVehicles(vehiclesFC)
   }, [vehiclesFC])
 
   // Push stop markers
