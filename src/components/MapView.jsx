@@ -41,9 +41,6 @@ export default function MapView({
   arrivals,
   onSelectStop,
   onStopClose,
-  selectedRouteId,
-  focusBounds,
-  onRouteSelect,
   arrivalsIndex,
 }) {
   const containerRef = useRef(null)
@@ -53,8 +50,8 @@ export default function MapView({
   const propsRef = useRef({ stopsData, stopsById, arrivalsIndex })
   const popupRef = useRef(null) // vehicle popup (transient)
   const boardRef = useRef(null) // stop board popup (persistent while selected)
-  const callbacksRef = useRef({ onSelectStop, onStopClose, onRouteSelect })
-  callbacksRef.current = { onSelectStop, onStopClose, onRouteSelect }
+  const callbacksRef = useRef({ onSelectStop, onStopClose })
+  callbacksRef.current = { onSelectStop, onStopClose }
   propsRef.current = { stopsData, stopsById, arrivalsIndex }
 
   const pushData = (which, fc) => {
@@ -172,20 +169,6 @@ export default function MapView({
         },
       })
 
-      // Selected route — bold highlight on top of everything
-      map.addLayer({
-        id: 'shapes-selected',
-        type: 'line',
-        source: 'shapes',
-        filter: ['==', ['get', 'routeId'], ''],
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': ['coalesce', ['get', 'color'], ACCENT],
-          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 3, 14, 5],
-          'line-opacity': 0.95,
-        },
-      })
-
       // Bold stop circles — bigger than vehicles
       map.addLayer({
         id: 'stops-dot',
@@ -254,7 +237,7 @@ export default function MapView({
         },
       })
 
-      // Interactions — one click handler, clear priority: vehicles > stops > lines
+      // Interactions — one click handler, clear priority: vehicles > stops
       map.on('click', (e) => {
         const vehicles = map.queryRenderedFeatures(e.point, { layers: ['vehicles-core'] })
         if (vehicles.length > 0) {
@@ -269,16 +252,11 @@ export default function MapView({
         if (stopFeatures.length > 0) {
           const stopId = stopFeatures[0].properties.stop_id
           if (stopId) callbacksRef.current.onSelectStop(stopId)
-          return
-        }
-        const lineFeatures = map.queryRenderedFeatures(e.point, { layers: ['shapes-line', 'shapes-alert'] })
-        if (lineFeatures.length > 0 && lineFeatures[0].properties.routeId) {
-          callbacksRef.current.onRouteSelect?.(lineFeatures[0].properties.routeId)
         }
       })
       map.on('mousemove', (e) => {
         const hit = map.queryRenderedFeatures(e.point, {
-          layers: ['vehicles-core', 'stops-dot', 'shapes-line'],
+          layers: ['vehicles-core', 'stops-dot'],
         })
         map.getCanvas().style.cursor = hit.length > 0 ? 'pointer' : ''
       })
@@ -373,23 +351,6 @@ export default function MapView({
       map.setFilter(layer, filter)
     }
   }, [modeFilter])
-
-  // Selected route: highlight it and dim the rest of the network
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !readyRef.current) return
-    map.setFilter('shapes-selected', ['==', ['get', 'routeId'], selectedRouteId ?? ''])
-    const dim = selectedRouteId ? 0.12 : null
-    map.setPaintProperty('shapes-line', 'line-opacity', dim ?? 0.45)
-    map.setPaintProperty('shapes-alert', 'line-opacity', dim ?? 0.9)
-  }, [selectedRouteId])
-
-  // Camera focus bounds (e.g. when a line is selected)
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !readyRef.current || !focusBounds) return
-    map.fitBounds(focusBounds, { padding: 60, maxZoom: 15, duration: 700 })
-  }, [focusBounds])
 
   return <div ref={containerRef} className="map" />
 }

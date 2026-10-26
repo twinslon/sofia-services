@@ -36,35 +36,6 @@ export function headerStats(page) {
   })
 }
 
-/** Click a rendered line at a spot not covered by stops/vehicles (priority
- * clicks). Retries a few times — animated vehicles can move into a spot. */
-export async function clickALine(page, attempts = 3) {
-  const tryClick = () =>
-    page.evaluate(() => {
-      const m = window.__map
-      for (const f of m.queryRenderedFeatures({ layers: ['shapes-line'] }).slice(0, 120)) {
-        const coords = f.geometry.coordinates
-        for (let i = 1; i < coords.length; i += 2) {
-          const [lng, lat] = coords[i]
-          if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
-          const point = m.project(coords[i])
-          if (m.queryRenderedFeatures(point, { layers: ['stops-dot', 'vehicles-core'] }).length > 0) continue
-          if (m.queryRenderedFeatures(point, { layers: ['shapes-line'] }).length === 0) continue
-          m.fire('click', { lngLat: coords[i], point })
-          return f.properties.routeId
-        }
-      }
-      return null
-    })
-
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    const routeId = await tryClick()
-    if (routeId && (await page.locator('.line-panel').isVisible())) return routeId
-    await page.waitForTimeout(700)
-  }
-  return null
-}
-
 /** Fail the test if any console/page errors occur during the callback. */
 export async function expectNoErrors(page, fn) {
   const errors = []

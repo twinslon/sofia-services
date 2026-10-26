@@ -54,7 +54,6 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 - [x] Arrivals boards per stop — search by name or code, or click a stop dot on the map
 - [x] Vehicle popups with line, headsign and next stops
 - [x] Service alerts — bell + panel, affected lines highlighted amber on the map
-- [x] Line explorer — click a line: both directions, ordered stops (clickable), live next departures, route highlight + fit-to-view
 - [x] Stop deduplication (dead stops dropped, directional pairs merged)
 - [x] Light theme (OpenFreeMap positron + matching UI)
 - [x] GitHub Pages deployment — CI test gate, daily cron rebuild refreshes GTFS extracts
@@ -64,7 +63,7 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 
 ### Next up
 
-- [ ] Static timetables in the line explorer (full-day schedule from calendar_dates)
+- [ ] Line explorer v2 — opt-in entry (e.g. from the alerts panel) instead of map clicks, which misfired when aiming at vehicles
 
 ### Later
 

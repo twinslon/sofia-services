@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { clickALine, waitForApp } from './helpers.js'
+import { waitForApp } from './helpers.js'
 
 // Phone-class viewport for the whole file
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
@@ -22,13 +22,14 @@ test.describe('mobile layout', () => {
     expect(chipsBox.height).toBeLessThan(firstChip.height * 2)
   })
 
-  test('line explorer opens as a bottom sheet', async ({ page }) => {
+  test('alerts panel opens as a bottom sheet', async ({ page }) => {
     await waitForApp(page)
 
-    const selected = await clickALine(page)
-    test.skip(!selected, 'no clear line spot found')
+    const bell = page.locator('.bell')
+    await expect(bell).toBeVisible({ timeout: 30_000 })
+    await bell.click()
 
-    const sheet = page.locator('.line-panel')
+    const sheet = page.locator('.alerts-panel')
     await expect(sheet).toBeVisible()
     const box = await sheet.boundingBox()
 
@@ -37,10 +38,8 @@ test.describe('mobile layout', () => {
     expect(box.y + box.height).toBeGreaterThan(830)
     expect(box.y).toBeGreaterThan(844 * 0.35) // leaves map visible above
 
-    // Stop rows are touch-sized
-    const stopRow = sheet.locator('.dir-stops button').first()
-    const rowBox = await stopRow.boundingBox()
-    expect(rowBox.height).toBeGreaterThan(38)
+    await page.locator('.alerts-panel .board-close').click()
+    await expect(sheet).toHaveCount(0)
   })
 
   test('stop board popup fits within the phone viewport', async ({ page }) => {

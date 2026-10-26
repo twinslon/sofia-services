@@ -97,26 +97,6 @@ test.describe('prepared GTFS extracts', () => {
     }
   })
 
-  test('lines: per-route headsign groups with resolvable ordered stops', () => {
-    const lines = data('lines')
-    const stops = data('stops')
-    const routes = data('routes')
-    const routeIds = Object.keys(lines)
-    expect(routeIds.length).toBeGreaterThan(120)
-    for (const routeId of routeIds.slice(0, 60)) {
-      expect(routes[routeId], `route ${routeId} exists`).toBeTruthy()
-      const groups = Object.entries(lines[routeId])
-      expect(groups.length).toBeGreaterThan(0)
-      expect(groups.length).toBeLessThanOrEqual(3)
-      for (const [headsign, g] of groups) {
-        expect(g.stops.length).toBeGreaterThan(3)
-        for (const stopId of g.stops) {
-          if (!stops[stopId]) throw new Error(`route ${routeId} "${headsign}" references unknown stop ${stopId}`)
-        }
-      }
-    }
-  })
-
   test('stop aliases: every original id maps to an existing stop', () => {
     const aliases = data('stop-aliases')
     const stops = data('stops')
