@@ -54,7 +54,8 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 - [x] Arrivals boards per stop — search by name or code, or click a stop dot on the map
 - [x] Vehicle popups with line, headsign and next stops
 - [x] Service alerts — bell + panel, affected lines highlighted amber on the map
-- [x] Stop deduplication (dead stops dropped, directional pairs merged)
+- [x] Stop deduplication (dead stops dropped, directional pairs merged, alias-resolved RT lookups)
+- [x] Live-coverage fading — stops without real-time predictions shrink to faint dots each poll
 - [x] Light theme (OpenFreeMap positron + matching UI)
 - [x] GitHub Pages deployment — CI test gate, daily cron rebuild refreshes GTFS extracts
 - [x] Mobile ergonomics — bottom-sheet panels, compact header, touch targets
@@ -63,11 +64,12 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 
 ### Next up
 
-- [ ] Line explorer v2 — opt-in entry (e.g. from the alerts panel) instead of map clicks, which misfired when aiming at vehicles
+- [ ] Air quality layer — first non-transit city service: official monitoring stations on the map (needs data-source research: EEA Bulgaria / open data portal)
+- [ ] bg/en UI toggle (GTFS translations.txt already carries both languages)
+- [ ] Line explorer v2 — opt-in entry point (e.g. a line picker in the header) instead of map clicks, which misfired when aiming at vehicles
 
 ### Later
 
-- [ ] First non-transit service: air quality (official stations) on the map
 - [ ] City bike parking and paid parking zones (opendata.government.bg)
-- [ ] bg/en UI toggle (GTFS translations.txt already carries both)
 - [ ] Bundle code-splitting (maplibre + protobuf dominate the 380 kB gzipped JS)
+- [ ] Static full-day timetables (calendar_dates) — live departures cover the current need
