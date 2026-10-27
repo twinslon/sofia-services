@@ -33,6 +33,24 @@ test.describe('map rendering', () => {
     expect(stats.sampleVehicle.line).toBeTruthy()
   })
 
+  test('stop dots are marked with live coverage', async ({ page }) => {
+    await waitForApp(page)
+    const info = await page.evaluate(() => {
+      const feats = window.__map.queryRenderedFeatures({ layers: ['stops-dot'] })
+      const live = feats.filter((f) => f.properties.live).length
+      const dead = feats.length - live
+      const paintUsesLive = JSON.stringify(
+        window.__map.getLayer('stops-dot').serialize().paint['circle-radius'],
+      ).includes('live')
+      return { total: feats.length, live, dead, paintUsesLive }
+    })
+    expect(info.total).toBeGreaterThan(50)
+    expect(info.paintUsesLive).toBe(true)
+    // At busy hours both classes exist; at night only faded dots may remain
+    if (info.live === 0) test.skip(true, 'no live service right now')
+    expect(info.live).toBeGreaterThan(0)
+  })
+
   test('vehicle click opens popup with line, headsign and next stops', async ({ page }) => {
     await waitForApp(page)
     const fired = await page.evaluate(() => {

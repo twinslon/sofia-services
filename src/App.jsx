@@ -48,13 +48,20 @@ export default function App() {
           ),
         )
         if (!cancelled) {
-          // Flat lookup: original stop ids (RT feed) + representative ids -> stop entry
+          // Flat lookups: original stop ids (RT feed) -> stop entry, and -> rep id
           const stopsById = { ...stops }
-          for (const [orig, rep] of Object.entries(aliases)) {
-            const repStop = stops[rep]
-            if (repStop) stopsById[orig] = repStop
+          const stopIdToRep = {}
+          for (const [repId, s] of Object.entries(stops)) {
+            stopsById[repId] = s
+            stopIdToRep[repId] = repId
           }
-          setStaticData({ routes, trips, shapes, stops, stopsById, meta })
+          for (const [orig, rep] of Object.entries(aliases)) {
+            if (stops[rep]) {
+              stopsById[orig] = stops[rep]
+              stopIdToRep[orig] = rep
+            }
+          }
+          setStaticData({ routes, trips, shapes, stops, stopsById, stopIdToRep, meta })
         }
       } catch (err) {
         if (!cancelled) setStatus((s) => ({ ...s, state: 'error', message: String(err.message || err) }))
@@ -123,6 +130,19 @@ export default function App() {
       clearTimeout(timer)
     }
   }, [])
+
+  // Which stops (reps) have live arrivals right now — from the trip-updates index
+  const liveStopIds = useMemo(() => {
+    const covered = new Set()
+    const byStop = arrivalsIndex?.byStop
+    const toRep = staticData?.stopIdToRep
+    if (!byStop || !toRep) return covered
+    for (const stopId of byStop.keys()) {
+      const rep = toRep[stopId]
+      if (rep) covered.add(rep)
+    }
+    return covered
+  }, [arrivalsIndex, staticData])
 
   const shapesFC = useMemo(() => {
     if (!staticData) return null
@@ -211,6 +231,7 @@ export default function App() {
           modeFilter={modeFilter}
           stopsData={staticData?.stops}
           stopsById={staticData?.stopsById}
+          liveStopIds={liveStopIds}
           selectedStop={selectedStop}
           arrivals={arrivals}
           onSelectStop={setSelectedStopId}

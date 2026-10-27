@@ -37,6 +37,7 @@ export default function MapView({
   modeFilter,
   stopsData,
   stopsById,
+  liveStopIds,
   selectedStop,
   arrivals,
   onSelectStop,
@@ -169,16 +170,29 @@ export default function MapView({
         },
       })
 
-      // Bold stop circles — bigger than vehicles
+      // Bold stop circles — bigger than vehicles; stops without live
+      // coverage (metro RT gaps, seasonal/night service) fade to dots
       map.addLayer({
         id: 'stops-dot',
         type: 'circle',
         source: 'stops',
         minzoom: 11,
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 4, 12, 5, 14, 7, 16, 9],
-          'circle-color': INK,
-          'circle-opacity': 0.9,
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            11,
+            ['case', ['get', 'live'], 4, 2.5],
+            12,
+            ['case', ['get', 'live'], 5, 2.5],
+            14,
+            ['case', ['get', 'live'], 7, 3],
+            16,
+            ['case', ['get', 'live'], 9, 3.5],
+          ],
+          'circle-color': ['case', ['get', 'live'], INK, '#8c959f'],
+          'circle-opacity': ['case', ['get', 'live'], 0.9, 0.35],
           'circle-stroke-width': 2,
           'circle-stroke-color': '#ffffff',
         },
@@ -294,18 +308,18 @@ export default function MapView({
     pushVehicles(vehiclesFC)
   }, [vehiclesFC])
 
-  // Push stop markers
+  // Push stop markers (re-marked with live coverage on every poll)
   useEffect(() => {
     if (!stopsData) return
     const features = Object.entries(stopsData).map(([stopId, s]) => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [s.x, s.y] },
-      properties: { stop_id: stopId, name: s.n },
+      properties: { stop_id: stopId, name: s.n, live: liveStopIds ? liveStopIds.has(stopId) : true },
     }))
     const fc = { type: 'FeatureCollection', features }
     dataRef.current.stops = fc
     pushData('stops', fc)
-  }, [stopsData])
+  }, [stopsData, liveStopIds])
 
   // Selected stop: highlight, fly to, and open/update its board popup
   useEffect(() => {

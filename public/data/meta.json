@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-10-26T18:02:16.668Z",
+  "generated_at": "2026-10-27T16:58:49.700Z",
   "source": "https://gtfs.sofiatraffic.bg/api/v1/static",
   "license": "CC-BY-4.0, Center for Urban Mobility (Sofia Traffic)",
   "counts": {
     "routes": 204,
-    "trips": 29156,
-    "shapes": 1931,
-    "stops": 1891,
-    "shape_points_raw": 822980,
-    "shape_points_kept": 171394
+    "trips": 29199,
+    "shapes": 1932,
+    "stops": 1893,
+    "shape_points_raw": 823094,
+    "shape_points_kept": 171499
   }
 }
