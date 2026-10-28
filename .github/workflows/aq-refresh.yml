@@ -30,6 +30,9 @@ jobs:
       - name: Fetch latest air quality values (EEA)
         run: node scripts/fetch-aq.mjs
 
+      - name: Fetch citizen sensors subset (Sensor.Community)
+        run: node scripts/fetch-sc.mjs
+
       - name: Build
         run: npm run build
 

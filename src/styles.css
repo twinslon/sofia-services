@@ -489,6 +489,24 @@ body,
   font-size: 11.5px;
 }
 
+.community-dot-sample {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #8c959f;
+  border: 1.5px solid #fff;
+  margin-right: 2px;
+}
+
+.aq-legend-note {
+  margin-top: 5px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
 /* ── Alerts bell + panel ─────────────────────────────────── */
 
 .bell {

@@ -46,6 +46,7 @@ export default function MapView({
   arrivalsIndex,
   service,
   aqFC,
+  communityFC,
 }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
@@ -302,6 +303,22 @@ export default function MapView({
         },
       })
 
+      // Citizen sensors (Sensor.Community) — smaller hollow dots
+      map.addSource('community', { type: 'geojson', data: emptyFC() })
+      map.addLayer({
+        id: 'community-dot',
+        type: 'circle',
+        source: 'community',
+        layout: { visibility: 'none' },
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 3, 14, 5],
+          'circle-color': ['get', 'color'],
+          'circle-opacity': 0.85,
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': '#ffffff',
+        },
+      })
+
       // Interactions — one click handler, clear priority: vehicles > stops
       map.on('click', (e) => {
         if (serviceRef.current === 'air') {
@@ -311,6 +328,15 @@ export default function MapView({
             popupRef.current = new maplibregl.Popup({ offset: 10, maxWidth: '280px' })
               .setLngLat(e.lngLat)
               .setHTML(aqPopupHTML(stations[0].properties))
+              .addTo(map)
+            return
+          }
+          const community = map.queryRenderedFeatures(e.point, { layers: ['community-dot'] })
+          if (community.length > 0) {
+            popupRef.current?.remove()
+            popupRef.current = new maplibregl.Popup({ closeButton: false, offset: 8, maxWidth: '240px' })
+              .setLngLat(e.lngLat)
+              .setHTML(communityPopupHTML(community[0].properties))
               .addTo(map)
           }
           return
@@ -333,7 +359,7 @@ export default function MapView({
       map.on('mousemove', (e) => {
         const layers =
           serviceRef.current === 'air'
-            ? ['aq-dot']
+            ? ['aq-dot', 'community-dot']
             : ['vehicles-core', 'stops-dot']
         const hit = map.queryRenderedFeatures(e.point, { layers })
         map.getCanvas().style.cursor = hit.length > 0 ? 'pointer' : ''
@@ -428,12 +454,19 @@ export default function MapView({
     map.getSource('aq')?.setData(aqFC)
   }, [aqFC])
 
+  // Push citizen sensors (cleared when the pollutant has no community data)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+    map.getSource('community')?.setData(communityFC ?? emptyFC())
+  }, [communityFC])
+
   // Service switch: transport layers <-> air quality layers
   useEffect(() => {
     const map = mapRef.current
     if (!map || !readyRef.current) return
     const transport = ['shapes-line', 'shapes-alert', 'stops-dot', 'stops-selected', 'vehicles-halo', 'vehicles-core', 'vehicles-label']
-    const air = ['aq-halo', 'aq-dot', 'aq-label']
+    const air = ['aq-halo', 'aq-dot', 'aq-label', 'community-dot']
     const show = (layers, visible) => {
       for (const l of layers) {
         if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', visible ? 'visible' : 'none')
@@ -516,8 +549,7 @@ function escapeHtml(s) {
 }
 
 /** Air-quality station popup: all pollutants with band colors. */
-function aqPopupHTML(props) {
-  let values
+function aqPopupHTML(props) {  let values
   try {
     values = JSON.parse(props.values ?? '{}')
   } catch {
@@ -544,5 +576,30 @@ function aqPopupHTML(props) {
       <div class="aq-sub">${escapeHtml(props.area ?? '')}</div>
       ${rows ? `<ul class="aq-list">${rows}</ul>` : '<p class="board-empty">No current readings.</p>'}
       <div class="veh-id">EEA official monitoring · hourly</div>
+    </div>`
+}
+
+/** Citizen-sensor popup: PM readings + age + provenance. */
+function communityPopupHTML(props) {
+  const feedKey = 'PM10'
+  const rows = []
+  if (props.value != null) {
+    const band = aqiBand(feedKey, props.value)
+    rows.push(
+      `<li><span class="aq-band-dot" style="background:${band?.color ?? '#8c959f'}"></span>` +
+        `<span class="aq-poll">PM10</span><span class="aq-val">${props.value} µg/m³</span>` +
+        `<span class="aq-band">${escapeHtml(band?.label ?? '')}</span></li>`,
+    )
+  }
+  const ageMs = props.tsMs ? Date.now() - props.tsMs : null
+  const age = ageMs != null ? `${Math.max(0, Math.round(ageMs / 60000))} min ago` : ''
+  return `
+    <div class="aq-popup">
+      <div class="aq-head">
+        <h2>Citizen sensor #${escapeHtml(props.sid)}</h2>
+      </div>
+      <div class="aq-sub">${escapeHtml(props.type ?? '')} · indicative${age ? ` · ${age}` : ''}</div>
+      ${rows.length ? `<ul class="aq-list">${rows.join('')}</ul>` : ''}
+      <div class="veh-id">Sensor.Community · low-cost sensor</div>
     </div>`
 }

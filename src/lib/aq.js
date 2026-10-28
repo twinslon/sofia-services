@@ -73,3 +73,43 @@ export function buildAqFeatures(aqData, selectedUiKey) {
   })
   return { type: 'FeatureCollection', features }
 }
+
+// Sensor.Community citizen sensors report only PM (P1 = PM10, P2 = PM2.5)
+const PM_FEED_KEYS = new Set(['PM10', 'PM2.5'])
+const COMMUNITY_MAX_PLAUSIBLE = 1000 // µg/m³ — above this a sensor is malfunctioning
+
+/** "2026-10-28 18:52:28" (UTC) -> Date. The API omits T/Z. */
+export function parseScTimestamp(ts) {
+  return new Date(String(ts).replace(' ', 'T') + 'Z')
+}
+
+/**
+ * Sofia citizen-sensor GeoJSON colored by the selected pollutant.
+ * Returns null when the pollutant has no community coverage (NO2/O3/...).
+ * Invalid or implausible readings (>1000 µg/m³) are skipped.
+ */
+export function buildCommunityFeatures(scData, selectedUiKey) {
+  const feedKey = POLLUTANTS[selectedUiKey]?.key ?? UI_KEY_TO_FEED[selectedUiKey] ?? 'PM10'
+  if (!PM_FEED_KEYS.has(feedKey)) return null
+  const pmKey = feedKey === 'PM10' ? 'P1' : 'P2'
+  const features = (scData?.sensors ?? [])
+    .map((s) => {
+      const v = s[pmKey]
+      if (v == null || !Number.isFinite(v) || v > COMMUNITY_MAX_PLAUSIBLE || v < 0) return null
+      const band = aqiBand(feedKey, v)
+      return {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [s.lon, s.lat] },
+        properties: {
+          sid: s.id,
+          type: s.type,
+          color: band?.color ?? '#8c959f',
+          level: band?.level ?? 'none',
+          value: v,
+          tsMs: parseScTimestamp(s.timestamp)?.getTime() ?? null,
+        },
+      }
+    })
+    .filter(Boolean)
+  return { type: 'FeatureCollection', features }
+}

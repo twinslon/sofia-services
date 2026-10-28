@@ -13,7 +13,7 @@ import {
   extractVehicles,
   fetchRealtimeFeed,
 } from './lib/transport.js'
-import { POLLUTANTS, UI_KEY_TO_FEED, aqiBand, aqiBandScale, buildAqFeatures } from './lib/aq.js'
+import { POLLUTANTS, UI_KEY_TO_FEED, aqiBand, aqiBandScale, buildAqFeatures, buildCommunityFeatures } from './lib/aq.js'
 
 const POLL_INTERVAL_MS = 10_000
 const ALERTS_POLL_INTERVAL_MS = 60_000
@@ -36,6 +36,7 @@ export default function App() {
   const [service, setService] = useState('transport') // 'transport' | 'air'
   const [pollutant, setPollutant] = useState('PM10')
   const [aqData, setAqData] = useState(null)
+  const [scData, setScData] = useState(null)
   const [status, setStatus] = useState({ state: 'loading', count: 0, updatedAt: null })
 
   // Load the prepared static GTFS extracts
@@ -126,6 +127,31 @@ export default function App() {
     }
   }, [])
 
+  // Citizen sensors (Sensor.Community): fetch the baked Sofia subset when
+  // entering Air mode, refresh every 5 min while there
+  useEffect(() => {
+    if (service !== 'air') return
+    let cancelled = false
+    let timer
+    const poll = async () => {
+      try {
+        const d = await fetch(`${import.meta.env.BASE_URL}data/sc-sofia.json`).then((r) =>
+          r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
+        )
+        if (!cancelled) setScData(d)
+      } catch {
+        /* keep last good data */
+      } finally {
+        if (!cancelled) timer = setTimeout(poll, 5 * 60_000)
+      }
+    }
+    poll()
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [service])
+
   // Poll the alerts feed on a slower cadence (it changes rarely)
   useEffect(() => {
     let cancelled = false
@@ -190,6 +216,11 @@ export default function App() {
     aqData,
     pollutant,
   ])
+
+  const communityFC = useMemo(
+    () => (service === 'air' ? buildCommunityFeatures(scData, pollutant) : null),
+    [service, scData, pollutant],
+  )
 
   const aqUpdated = aqData?.generated_at ? new Date(aqData.generated_at) : null
   const aqBandForSelected = useMemo(() => {
@@ -309,6 +340,7 @@ export default function App() {
           arrivalsIndex={arrivalsIndex}
           service={service}
           aqFC={aqFC}
+          communityFC={communityFC}
         />
 
         {service === 'air' && (
@@ -322,6 +354,12 @@ export default function App() {
                 </li>
               ))}
             </ul>
+            {(['PM10', 'PM2_5'].includes(pollutant)) && (
+              <div className="aq-legend-note">
+                <span className="community-dot-sample" /> citizen sensor (indicative)
+              </div>
+            )}
+            {aqUpdated && <div className="aq-legend-note">official: {aqUpdated.toLocaleTimeString()}</div>}
           </div>
         )}
 
@@ -332,14 +370,29 @@ export default function App() {
         )}
 
         <footer className="attribution">
-          Data:{' '}
-          <a href="https://www.sofiatraffic.bg/bg/info-center/gtfs-danni" target="_blank" rel="noreferrer">
-            Center for Urban Mobility (Sofia Traffic)
-          </a>{' '}
-          · CC-BY-4.0 · Map © OpenStreetMap contributors · Tiles{' '}
-          <a href="https://openfreemap.org" target="_blank" rel="noreferrer">
-            OpenFreeMap
-          </a>
+          {service === 'air' ? (
+            <>
+              Stations: EEA (official) ·{' '}
+              <a href="https://sensor.community" target="_blank" rel="noreferrer">
+                Sensor.Community
+              </a>{' '}
+              citizen sensors (CC BY-SA) · Map © OpenStreetMap contributors · Tiles{' '}
+              <a href="https://openfreemap.org" target="_blank" rel="noreferrer">
+                OpenFreeMap
+              </a>
+            </>
+          ) : (
+            <>
+              Data:{' '}
+              <a href="https://www.sofiatraffic.bg/bg/info-center/gtfs-danni" target="_blank" rel="noreferrer">
+                Center for Urban Mobility (Sofia Traffic)
+              </a>{' '}
+              · CC-BY-4.0 · Map © OpenStreetMap contributors · Tiles{' '}
+              <a href="https://openfreemap.org" target="_blank" rel="noreferrer">
+                OpenFreeMap
+              </a>
+            </>
+          )}
         </footer>
       </main>
     </div>

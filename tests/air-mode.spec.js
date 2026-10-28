@@ -44,6 +44,27 @@ test.describe('air quality mode', () => {
     if (back.vehicles === 0) test.info().annotations.push({ type: 'note', description: 'no vehicles in feed right now' })
   })
 
+  test('community sensors render for PM pollutants and hide otherwise', async ({ page }) => {
+    await waitForApp(page)
+    await page.getByRole('tab', { name: 'Air' }).click()
+    await page.waitForTimeout(800)
+
+    // PM10 selected by default: hundreds of citizen dots
+    const pm10 = await page.evaluate(() => {
+      const m = window.__map
+      return m.queryRenderedFeatures({ layers: ['community-dot'] }).length
+    })
+    expect(pm10).toBeGreaterThan(50)
+
+    // Switch to NO2 — community sensors have no NO2 data, layer empties
+    await page.locator('.chip', { hasText: 'NO₂' }).click()
+    const no2 = await page.evaluate(() => {
+      const m = window.__map
+      return m.queryRenderedFeatures({ layers: ['community-dot'] }).length
+    })
+    expect(no2).toBe(0)
+  })
+
   test('station click opens popup with pollutant values and band colors', async ({ page }) => {
     await waitForApp(page)
     await page.getByRole('tab', { name: 'Air' }).click()

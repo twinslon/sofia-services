@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { aqiBand, aqiBandScale, buildAqFeatures } from '../src/lib/aq.js'
+import { aqiBand, aqiBandScale, buildAqFeatures, buildCommunityFeatures } from '../src/lib/aq.js'
 
 test.describe('air quality index helpers', () => {
   test('bands map values to the right level', () => {
@@ -23,6 +23,24 @@ test.describe('air quality index helpers', () => {
       'good', 'fair', 'moderate', 'poor', 'very-poor', 'extremely-poor',
     ])
     expect(scale.every((b) => b.color && b.label)).toBe(true)
+  })
+
+  test('community sensors: only for PM pollutants, outliers rejected', () => {
+    const sc = {
+      sensors: [
+        { id: 1, type: 'SDS011', lat: 42.7, lon: 23.3, timestamp: '2026-10-28 18:52:28', P1: 35, P2: 20 },
+        { id: 2, type: 'SDS011', lat: 42.71, lon: 23.31, timestamp: '2026-10-28 18:52:00', P1: 2266, P2: 1800 }, // broken
+        { id: 3, type: 'BME280', lat: 42.72, lon: 23.32, timestamp: '2026-10-28 18:52:00' }, // no PM
+      ],
+    }
+    const pm10 = buildCommunityFeatures(sc, 'PM10')
+    expect(pm10.features.length).toBe(1)
+    expect(pm10.features[0].properties.level).toBe('fair') // 35 µg/m³
+    // NO2 has no community coverage
+    expect(buildCommunityFeatures(sc, 'NO2')).toBeNull()
+    // PM2.5 uses the P2 value
+    const pm25 = buildCommunityFeatures(sc, 'PM2_5')
+    expect(pm25.features[0].properties.value).toBe(20)
   })
 
   test('buildAqFeatures colors stations by the selected pollutant', () => {
