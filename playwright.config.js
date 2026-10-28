@@ -7,6 +7,7 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:5173',
+    viewport: { width: 1280, height: 800 },
     // System Chrome — no browser download needed locally or in CI
     channel: 'chrome',
     headless: true,

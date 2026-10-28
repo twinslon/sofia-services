@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { MODES, SOFIA_CENTER, formatEta } from '../lib/transport.js'
+import { POLLUTANTS, aqiBand } from '../lib/aq.js'
 
 // OpenFreeMap: free vector tiles, no API key, no watermark
 // https://openfreemap.org — styles: positron (light), dark, liberty, bright
@@ -43,12 +44,16 @@ export default function MapView({
   onSelectStop,
   onStopClose,
   arrivalsIndex,
+  service,
+  aqFC,
 }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const readyRef = useRef(false)
   const dataRef = useRef({ shapes: null, vehicles: null, stops: null })
   const propsRef = useRef({ stopsData, stopsById, arrivalsIndex })
+  const serviceRef = useRef(service)
+  serviceRef.current = service
   const popupRef = useRef(null) // vehicle popup (transient)
   const boardRef = useRef(null) // stop board popup (persistent while selected)
   const callbacksRef = useRef({ onSelectStop, onStopClose })
@@ -251,8 +256,65 @@ export default function MapView({
         },
       })
 
+      // Air quality stations (visible in Air mode)
+      map.addSource('aq', { type: 'geojson', data: emptyFC() })
+      map.addLayer({
+        id: 'aq-halo',
+        type: 'circle',
+        source: 'aq',
+        layout: { visibility: 'none' },
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 10, 14, 16],
+          'circle-color': ['get', 'color'],
+          'circle-opacity': 0.18,
+          'circle-blur': 0.8,
+        },
+      })
+      map.addLayer({
+        id: 'aq-dot',
+        type: 'circle',
+        source: 'aq',
+        layout: { visibility: 'none' },
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 6, 14, 9],
+          'circle-color': ['get', 'color'],
+          'circle-opacity': 0.95,
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': '#ffffff',
+        },
+      })
+      map.addLayer({
+        id: 'aq-label',
+        type: 'symbol',
+        source: 'aq',
+        layout: {
+          visibility: 'none',
+          'text-field': ['get', 'value'],
+          'text-font': ['Noto Sans Regular'],
+          'text-size': 11,
+          'text-offset': [0, -2],
+          'text-anchor': 'bottom',
+        },
+        paint: {
+          'text-color': '#1f2328',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5,
+        },
+      })
+
       // Interactions — one click handler, clear priority: vehicles > stops
       map.on('click', (e) => {
+        if (serviceRef.current === 'air') {
+          const stations = map.queryRenderedFeatures(e.point, { layers: ['aq-dot'] })
+          if (stations.length > 0) {
+            popupRef.current?.remove()
+            popupRef.current = new maplibregl.Popup({ offset: 10, maxWidth: '280px' })
+              .setLngLat(e.lngLat)
+              .setHTML(aqPopupHTML(stations[0].properties))
+              .addTo(map)
+          }
+          return
+        }
         const vehicles = map.queryRenderedFeatures(e.point, { layers: ['vehicles-core'] })
         if (vehicles.length > 0) {
           popupRef.current?.remove()
@@ -269,9 +331,11 @@ export default function MapView({
         }
       })
       map.on('mousemove', (e) => {
-        const hit = map.queryRenderedFeatures(e.point, {
-          layers: ['vehicles-core', 'stops-dot'],
-        })
+        const layers =
+          serviceRef.current === 'air'
+            ? ['aq-dot']
+            : ['vehicles-core', 'stops-dot']
+        const hit = map.queryRenderedFeatures(e.point, { layers })
         map.getCanvas().style.cursor = hit.length > 0 ? 'pointer' : ''
       })
 
@@ -356,6 +420,31 @@ export default function MapView({
     map.easeTo({ center: [selectedStop.x, selectedStop.y], zoom: Math.max(map.getZoom(), 14.5), duration: 600 })
   }, [selectedStop, arrivals])
 
+  // Push air-quality stations (recolors on pollutant change)
+  useEffect(() => {
+    if (!aqFC) return
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+    map.getSource('aq')?.setData(aqFC)
+  }, [aqFC])
+
+  // Service switch: transport layers <-> air quality layers
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+    const transport = ['shapes-line', 'shapes-alert', 'stops-dot', 'stops-selected', 'vehicles-halo', 'vehicles-core', 'vehicles-label']
+    const air = ['aq-halo', 'aq-dot', 'aq-label']
+    const show = (layers, visible) => {
+      for (const l of layers) {
+        if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', visible ? 'visible' : 'none')
+      }
+    }
+    const isAir = service === 'air'
+    show(transport, !isAir)
+    show(air, isAir)
+    map.getCanvas().style.cursor = ''
+  }, [service])
+
   // Apply mode filter to all layers
   useEffect(() => {
     const map = mapRef.current
@@ -424,4 +513,36 @@ function vehiclePopupHTML(props, ctx) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+}
+
+/** Air-quality station popup: all pollutants with band colors. */
+function aqPopupHTML(props) {
+  let values
+  try {
+    values = JSON.parse(props.values ?? '{}')
+  } catch {
+    values = {}
+  }
+  const rows = Object.entries(values)
+    .map(([feedKey, r]) => {
+      const meta = Object.values(POLLUTANTS).find((m) => m.key === feedKey) ?? { label: feedKey, unit: '' }
+      const band = aqiBand(feedKey, r.v)
+      return `<li>
+        <span class="aq-band-dot" style="background:${band?.color ?? '#8c959f'}"></span>
+        <span class="aq-poll">${escapeHtml(meta.label)}</span>
+        <span class="aq-val">${r.v} ${escapeHtml(meta.unit)}</span>
+        <span class="aq-band">${escapeHtml(band?.label ?? '—')}</span>
+      </li>`
+    })
+    .join('')
+  return `
+    <div class="aq-popup">
+      <div class="aq-head">
+        <h2>${escapeHtml(props.name)}</h2>
+        <span class="aq-code">${escapeHtml(props.code)}</span>
+      </div>
+      <div class="aq-sub">${escapeHtml(props.area ?? '')}</div>
+      ${rows ? `<ul class="aq-list">${rows}</ul>` : '<p class="board-empty">No current readings.</p>'}
+      <div class="veh-id">EEA official monitoring · hourly</div>
+    </div>`
 }

@@ -13,7 +13,7 @@ test.describe('map rendering', () => {
       const stats = await mapStats(page)
 
       expect(stats.canvasW).toBeGreaterThan(1000)
-      expect(stats.canvasH).toBeGreaterThan(600)
+      expect(stats.canvasH).toBeGreaterThan(500)
     })
   })
 

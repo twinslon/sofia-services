@@ -1,0 +1,75 @@
+/**
+ * Air quality helpers: pollutant metadata, EEA index bands, station FC.
+ * Data: EEA Air Quality Download Service (official stations), see scripts/fetch-aq.mjs
+ */
+
+export const POLLUTANTS = {
+  PM10: { key: 'PM10', label: 'PM10', unit: 'µg/m³' },
+  PM2_5: { key: 'PM2.5', label: 'PM2.5', unit: 'µg/m³' },
+  NO2: { key: 'NO2', label: 'NO₂', unit: 'µg/m³' },
+  O3: { key: 'O3', label: 'O₃', unit: 'µg/m³' },
+  SO2: { key: 'SO2', label: 'SO₂', unit: 'µg/m³' },
+  CO: { key: 'CO', label: 'CO', unit: 'mg/m³' },
+}
+
+/** Feed keys -> UI keys ('PM2.5' has a dot; keep map keys clean) */
+export const FEED_KEY_TO_UI = { PM10: 'PM10', 'PM2.5': 'PM2_5', NO2: 'NO2', O3: 'O3', SO2: 'SO2', CO: 'CO' }
+export const UI_KEY_TO_FEED = Object.fromEntries(Object.entries(FEED_KEY_TO_UI).map(([f, u]) => [u, f]))
+
+/** EEA European Air Quality Index breakpoints per pollutant (see BREAKPOINTS below) */
+
+const BREAKPOINTS = {
+  //              good  fair  mod  poor  vpoor
+  PM10: [20, 40, 50, 100, 150],
+  'PM2.5': [10, 20, 25, 50, 75],
+  NO2: [40, 90, 120, 230, 340],
+  O3: [50, 100, 130, 240, 380],
+  SO2: [100, 200, 350, 500, 750],
+  CO: [4.4, 8.8, 11.6, 19.4, 28.8],
+}
+
+const LEVELS = [
+  { level: 'good', label: 'Good', color: '#50f0e6' },
+  { level: 'fair', label: 'Fair', color: '#50ccaa' },
+  { level: 'moderate', label: 'Moderate', color: '#f0e641' },
+  { level: 'poor', label: 'Poor', color: '#ff5050' },
+  { level: 'very-poor', label: 'Very poor', color: '#960032' },
+  { level: 'extremely-poor', label: 'Extremely poor', color: '#7d2181' },
+]
+
+/** Band lookup for a pollutant feed key ('PM10', 'PM2.5', ...) and value. */
+export function aqiBand(feedKey, value) {
+  const bp = BREAKPOINTS[feedKey]
+  if (!bp || !Number.isFinite(value)) return null
+  let i = 0
+  while (i < bp.length && value > bp[i]) i++
+  return LEVELS[i] ?? null
+}
+
+/** All bands ordered good -> extremely poor (for legends). */
+export function aqiBandScale() {
+  return [...LEVELS]
+}
+
+/** Stations GeoJSON for the map, colored by the selected pollutant. */
+export function buildAqFeatures(aqData, selectedUiKey) {
+  const feedKey = UI_KEY_TO_FEED[selectedUiKey] ?? 'PM10'
+  const features = (aqData?.stations ?? []).map((s) => {
+    const reading = s.values?.[feedKey]
+    const band = reading ? aqiBand(feedKey, reading.v) : null
+    return {
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [s.lon, s.lat] },
+      properties: {
+        code: s.code,
+        name: s.name,
+        area: s.area,
+        values: JSON.stringify(s.values ?? {}),
+        level: band?.level ?? 'none',
+        color: band?.color ?? '#8c959f',
+        value: reading?.v ?? null,
+      },
+    }
+  })
+  return { type: 'FeatureCollection', features }
+}

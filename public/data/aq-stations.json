@@ -1,0 +1,156 @@
+[
+ {
+  "code": "BG0024A",
+  "name": "\"Gara Yana-Sofia\"",
+  "lat": 42.72749,
+  "lon": 23.55601,
+  "area": "suburban",
+  "type": "background",
+  "pollutants": [
+   "PM10"
+  ]
+ },
+ {
+  "code": "BG0040A",
+  "name": "AMS Nadezhda-Sofia",
+  "lat": 42.73229,
+  "lon": 23.31097,
+  "area": "urban",
+  "type": "background",
+  "pollutants": [
+   "SO2",
+   "PM10",
+   "O3",
+   "NO2"
+  ]
+ },
+ {
+  "code": "BG0046A",
+  "name": "\"Tsarkva-Pernik\"",
+  "lat": 42.57828,
+  "lon": 23.11398,
+  "area": "suburban",
+  "type": "background",
+  "pollutants": [
+   "PM10",
+   "PM2.5"
+  ]
+ },
+ {
+  "code": "BG0049A",
+  "name": "\"AMS Shahtyor-Pernik\"",
+  "lat": 42.60995,
+  "lon": 23.03693,
+  "area": "urban",
+  "type": "traffic",
+  "pollutants": [
+   "SO2",
+   "PM10",
+   "NO2",
+   "CO"
+  ]
+ },
+ {
+  "code": "BG0050A",
+  "name": "\"AMS Hipodruma-Sofia\"",
+  "lat": 42.68056,
+  "lon": 23.29679,
+  "area": "urban",
+  "type": "background",
+  "pollutants": [
+   "SO2",
+   "PM10",
+   "O3",
+   "NO2",
+   "CO",
+   "PM2.5"
+  ]
+ },
+ {
+  "code": "BG0052A",
+  "name": "\"AMS Druzhba -Sofia\"",
+  "lat": 42.66651,
+  "lon": 23.40016,
+  "area": "urban",
+  "type": "background",
+  "pollutants": [
+   "SO2",
+   "PM10",
+   "O3",
+   "NO2"
+  ]
+ },
+ {
+  "code": "BG0054A",
+  "name": "\"AMS Orlov most-Sofia\"",
+  "lat": 42.69035,
+  "lon": 23.33605,
+  "area": "urban",
+  "type": "traffic",
+  "pollutants": [
+   "SO2",
+   "PM10",
+   "NO2",
+   "CO"
+  ]
+ },
+ {
+  "code": "BG0070A",
+  "name": "AMS Kopitoto",
+  "lat": 42.63719,
+  "lon": 23.24386,
+  "area": "rural-nearcity",
+  "type": "background",
+  "pollutants": [
+   "SO2",
+   "PM10",
+   "O3",
+   "NO2",
+   "CO",
+   "PM2.5"
+  ]
+ },
+ {
+  "code": "BG0073A",
+  "name": "\"AMS ExEA/Pavlovo-Sofia\"",
+  "lat": 42.6698,
+  "lon": 23.2684,
+  "area": "urban",
+  "type": "traffic",
+  "pollutants": [
+   "SO2",
+   "PM10",
+   "O3",
+   "NO2",
+   "CO"
+  ]
+ },
+ {
+  "code": "BG0079A",
+  "name": "AMS Mladost-Sofia",
+  "lat": 42.65549,
+  "lon": 23.38327,
+  "area": "urban",
+  "type": "traffic",
+  "pollutants": [
+   "SO2",
+   "PM10",
+   "NO2",
+   "CO"
+  ]
+ },
+ {
+  "code": "BG0080A",
+  "name": "AMS Center-Pernik",
+  "lat": 42.61033,
+  "lon": 23.03219,
+  "area": "urban",
+  "type": "background",
+  "pollutants": [
+   "SO2",
+   "PM10",
+   "NO2",
+   "CO"
+  ]
+ }
+]

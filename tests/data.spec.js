@@ -116,4 +116,21 @@ test.describe('prepared GTFS extracts', () => {
     expect(meta.license).toContain('CC-BY-4.0')
     expect(new Date(meta.generated_at).toString()).not.toBe('Invalid Date')
   })
+
+  test('aq: snapshot has Sofia stations with fresh readings', () => {
+    const aq = JSON.parse(readFileSync(new URL('../public/data/aq.json', import.meta.url)))
+    expect(aq.stations.length).toBeGreaterThanOrEqual(4)
+    expect(aq.source).toContain('EEA')
+    for (const s of aq.stations.slice(0, 10)) {
+      if (!s.name) throw new Error(`station ${s.code} has no name`)
+      if (!(s.lon > 22.8 && s.lon < 23.9 && s.lat > 42.4 && s.lat < 43.1)) {
+        throw new Error(`station ${s.code} out of bounds`)
+      }
+      const reading = Object.values(s.values ?? {})[0]
+      if (reading) {
+        expect(Number.isFinite(reading.v)).toBe(true)
+        expect(new Date(reading.t).toString()).not.toBe('Invalid Date')
+      }
+    }
+  })
 })

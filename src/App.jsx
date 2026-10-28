@@ -13,6 +13,7 @@ import {
   extractVehicles,
   fetchRealtimeFeed,
 } from './lib/transport.js'
+import { POLLUTANTS, UI_KEY_TO_FEED, aqiBand, aqiBandScale, buildAqFeatures } from './lib/aq.js'
 
 const POLL_INTERVAL_MS = 10_000
 const ALERTS_POLL_INTERVAL_MS = 60_000
@@ -32,6 +33,9 @@ export default function App() {
   const [modeFilter, setModeFilter] = useState('all')
   const [alerts, setAlerts] = useState(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
+  const [service, setService] = useState('transport') // 'transport' | 'air'
+  const [pollutant, setPollutant] = useState('PM10')
+  const [aqData, setAqData] = useState(null)
   const [status, setStatus] = useState({ state: 'loading', count: 0, updatedAt: null })
 
   // Load the prepared static GTFS extracts
@@ -110,6 +114,18 @@ export default function App() {
     }
   }, [staticData])
 
+  // Load air quality snapshot (baked hourly by CI)
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${import.meta.env.BASE_URL}data/aq.json`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d) => !cancelled && setAqData(d))
+      .catch(() => !cancelled && setAqData({ stations: [] }))
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   // Poll the alerts feed on a slower cadence (it changes rarely)
   useEffect(() => {
     let cancelled = false
@@ -169,6 +185,20 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStop, arrivalsIndex, staticData, status.updatedAt])
 
+  const aqFC = useMemo(() => (service === 'air' ? buildAqFeatures(aqData, pollutant) : null), [
+    service,
+    aqData,
+    pollutant,
+  ])
+
+  const aqUpdated = aqData?.generated_at ? new Date(aqData.generated_at) : null
+  const aqBandForSelected = useMemo(() => {
+    const feedKey = UI_KEY_TO_FEED[pollutant]
+    const stations = (aqData?.stations ?? []).map((s) => s.values?.[feedKey]).filter(Boolean)
+    const bands = stations.map((r) => aqiBand(feedKey, r.v)).filter(Boolean)
+    return bands.length ? bands.sort((a, b) => b.level.localeCompare(a.level))[0] : null
+  }, [aqData, pollutant])
+
   return (
     <div className="app">
       <header className="header">
@@ -177,32 +207,67 @@ export default function App() {
           <div>
             <h1>Sofia Services</h1>
             <p className="tagline">
-              {staticData
-                ? `${staticData.meta.counts.routes} lines · live city services, starting with public transport`
-                : 'Loading network data …'}
+              {service === 'transport'
+                ? staticData
+                  ? `${staticData.meta.counts.routes} lines · live city services, starting with public transport`
+                  : 'Loading network data …'
+                : 'Official air quality monitoring · EEA'}
             </p>
           </div>
         </div>
 
-        {staticData && (
+        <div className="service-switch" role="tablist" aria-label="Service">
+          {['transport', 'air'].map((s) => (
+            <button
+              key={s}
+              role="tab"
+              aria-selected={service === s}
+              className={`switch-btn ${service === s ? 'switch-active' : ''}`}
+              onClick={() => {
+                setService(s)
+                if (s === 'air') setSelectedStopId(null)
+              }}
+            >
+              {s === 'transport' ? 'Transport' : 'Air'}
+            </button>
+          ))}
+        </div>
+
+        {service === 'transport' && staticData && (
           <StopSearch stops={staticData.stops} onSelect={(id) => setSelectedStopId(id)} />
         )}
 
-        <nav className="filters" aria-label="Filter by mode">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              className={`chip ${modeFilter === f.key ? 'chip-active' : ''}`}
-              onClick={() => setModeFilter(f.key)}
-            >
-              {f.key !== 'all' && <span className="dot" style={{ background: MODES[f.key].color }} />}
-              {f.label}
-              {f.key !== 'all' && modeCounts[f.key] ? <span className="count">{modeCounts[f.key]}</span> : null}
-            </button>
-          ))}
-        </nav>
+        {service === 'transport' && (
+          <nav className="filters" aria-label="Filter by mode">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                className={`chip ${modeFilter === f.key ? 'chip-active' : ''}`}
+                onClick={() => setModeFilter(f.key)}
+              >
+                {f.key !== 'all' && <span className="dot" style={{ background: MODES[f.key].color }} />}
+                {f.label}
+                {f.key !== 'all' && modeCounts[f.key] ? <span className="count">{modeCounts[f.key]}</span> : null}
+              </button>
+            ))}
+          </nav>
+        )}
 
-        {alerts && (
+        {service === 'air' && (
+          <nav className="filters" aria-label="Pollutant">
+            {Object.entries(POLLUTANTS).map(([uiKey, p]) => (
+              <button
+                key={uiKey}
+                className={`chip ${pollutant === uiKey ? 'chip-active' : ''}`}
+                onClick={() => setPollutant(uiKey)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </nav>
+        )}
+
+        {service === 'transport' && alerts && (
           <button
             className={`bell ${alertsOpen ? 'bell-active' : ''}`}
             aria-label={`Service alerts${alerts.length ? ` (${alerts.length})` : ''}`}
@@ -217,10 +282,15 @@ export default function App() {
         )}
 
         <div className={`status status-${status.state}`}>
-          {status.state === 'loading' && 'Connecting to live feed …'}
-          {status.state === 'ok' &&
-            `${status.count} vehicles · updated ${status.updatedAt.toLocaleTimeString()}`}
-          {status.state === 'error' && `Feed error: ${status.message}`}
+          {service === 'air'
+            ? aqUpdated
+              ? `Air quality · updated ${aqUpdated.toLocaleTimeString()} · hourly`
+              : 'Loading air quality …'
+            : status.state === 'loading'
+              ? 'Connecting to live feed …'
+              : status.state === 'ok'
+                ? `${status.count} vehicles · updated ${status.updatedAt.toLocaleTimeString()}`
+                : `Feed error: ${status.message}`}
         </div>
       </header>
 
@@ -237,7 +307,23 @@ export default function App() {
           onSelectStop={setSelectedStopId}
           onStopClose={() => setSelectedStopId(null)}
           arrivalsIndex={arrivalsIndex}
+          service={service}
+          aqFC={aqFC}
         />
+
+        {service === 'air' && (
+          <div className="aq-legend">
+            <div className="aq-legend-title">{POLLUTANTS[pollutant]?.label} · worst now: {aqBandForSelected?.label ?? '—'}</div>
+            <ul>
+              {aqiBandScale().map((b) => (
+                <li key={b.level}>
+                  <span className="aq-band-dot" style={{ background: b.color }} />
+                  {b.label}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {alertsOpen && staticData && (
           <div className="alerts-wrap">
