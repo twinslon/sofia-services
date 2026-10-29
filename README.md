@@ -57,20 +57,17 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 - [x] Stop deduplication (dead stops dropped, directional pairs merged, alias-resolved RT lookups)
 - [x] Live-coverage fading — stops without real-time predictions shrink to faint dots each poll
 - [x] **Air quality layer** — first non-transit service: official EEA monitoring stations, pollutant selector (PM10/PM2.5/NO₂/O₃/SO₂/CO), EU index colors, station popups; hourly refresh
+- [x] Citizen-sensor layer — 327 Sensor.Community PM sensors, hourly bake, outliers rejected
 - [x] Light theme (OpenFreeMap positron + matching UI)
 - [x] GitHub Pages deployment — CI test gate, daily cron rebuild refreshes GTFS extracts
 - [x] Mobile ergonomics — bottom-sheet panels, compact header, touch targets
 - [x] Smooth vehicle movement — positions tweened between polls (snap on GPS jumps)
-- [x] E2E + data-integrity test suite (Playwright, 23 tests) and Chrome DevTools MCP debugging
-
-### Shipped (cont.)
-
-- [x] Air quality layer — official EEA stations, EU index bands, hourly refresh
+- [x] E2E + data-integrity test suite (Playwright, 30 tests) and Chrome DevTools MCP debugging
 
 ### Next up
 
-- [ ] Air quality v2 — live client-side polling if EEA ever adds CORS; per-pollutant history sparkline
 - [ ] bg/en UI toggle (GTFS translations.txt already carries both languages)
+- [ ] Air quality v2 — 48h history sparkline per station (the parquet files already carry the full series; bake it in fetch-aq)
 - [ ] Line explorer v2 — opt-in entry point (e.g. a line picker in the header) instead of map clicks, which misfired when aiming at vehicles
 
 ### Later
