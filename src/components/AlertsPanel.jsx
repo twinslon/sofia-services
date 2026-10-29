@@ -1,19 +1,22 @@
-import { ALERT_CAUSES, ALERT_EFFECTS, formatPeriod } from '../lib/transport.js'
+import { useLang } from '../lib/i18n.jsx'
+import { alertCauseLabel, alertEffectLabel, formatPeriod } from '../lib/transport.js'
 
 /** Panel listing active service alerts, with affected line badges. */
 export default function AlertsPanel({ alerts, routes, onClose }) {
+  const { lang, t } = useLang()
   return (
     <div className="alerts-panel">
       <div className="board-header">
         <h2>
-          Service alerts{alerts.length > 0 ? ` (${alerts.length})` : ''}
+          {t('alertsTitle')}
+          {alerts.length > 0 ? ` (${alerts.length})` : ''}
         </h2>
         <button className="board-close" aria-label="Close" onClick={onClose}>
           ✕
         </button>
       </div>
 
-      {alerts.length === 0 && <p className="board-empty">No active alerts right now.</p>}
+      {alerts.length === 0 && <p className="board-empty">{t('alertsNone')}</p>}
 
       <ul className="alerts-list">
         {alerts.map((a) => {
@@ -33,15 +36,15 @@ export default function AlertsPanel({ alerts, routes, onClose }) {
                       </span>
                     ))
                   ) : (
-                    <span className="alert-network">Network-wide</span>
+                    <span className="alert-network">{t('networkWide')}</span>
                   )}
                 </div>
-                <span className="alert-tag">{ALERT_EFFECTS[a.effect] ?? 'Notice'}</span>
+                <span className="alert-tag">{alertEffectLabel(a.effect, lang)}</span>
               </div>
               <div className="alert-sub">
-                {ALERT_CAUSES[a.cause] ?? ''}
-                {ALERT_CAUSES[a.cause] ? ' · ' : ''}
-                {formatPeriod(a)}
+                {alertCauseLabel(a.cause, lang)}
+                {alertCauseLabel(a.cause, lang) ? ' · ' : ''}
+                {formatPeriod(a, lang)}
               </div>
               <p className="alert-text">
                 {a.text.length > 300 ? `${a.text.slice(0, 300)}…` : a.text}

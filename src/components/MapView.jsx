@@ -47,19 +47,20 @@ export default function MapView({
   service,
   aqFC,
   communityFC,
+  lang,
 }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const readyRef = useRef(false)
   const dataRef = useRef({ shapes: null, vehicles: null, stops: null })
-  const propsRef = useRef({ stopsData, stopsById, arrivalsIndex })
+  const propsRef = useRef({ stopsData, stopsById, arrivalsIndex, lang })
   const serviceRef = useRef(service)
   serviceRef.current = service
   const popupRef = useRef(null) // vehicle popup (transient)
   const boardRef = useRef(null) // stop board popup (persistent while selected)
   const callbacksRef = useRef({ onSelectStop, onStopClose })
   callbacksRef.current = { onSelectStop, onStopClose }
-  propsRef.current = { stopsData, stopsById, arrivalsIndex }
+  propsRef.current = { stopsData, stopsById, arrivalsIndex, lang }
 
   const pushData = (which, fc) => {
     const map = mapRef.current
@@ -327,7 +328,7 @@ export default function MapView({
             popupRef.current?.remove()
             popupRef.current = new maplibregl.Popup({ offset: 10, maxWidth: '280px' })
               .setLngLat(e.lngLat)
-              .setHTML(aqPopupHTML(stations[0].properties))
+              .setHTML(aqPopupHTML(stations[0].properties, propsRef.current.lang))
               .addTo(map)
             return
           }
@@ -336,7 +337,7 @@ export default function MapView({
             popupRef.current?.remove()
             popupRef.current = new maplibregl.Popup({ closeButton: false, offset: 8, maxWidth: '240px' })
               .setLngLat(e.lngLat)
-              .setHTML(communityPopupHTML(community[0].properties))
+              .setHTML(communityPopupHTML(community[0].properties, propsRef.current.lang))
               .addTo(map)
           }
           return
@@ -423,7 +424,7 @@ export default function MapView({
       return
     }
 
-    const html = boardPopupHTML(selectedStop, arrivals)
+    const html = boardPopupHTML(selectedStop, arrivals, lang)
     if (boardRef.current?.isOpen()) {
       boardRef.current.setHTML(html)
     } else {
@@ -444,7 +445,7 @@ export default function MapView({
       boardRef.current = board
     }
     map.easeTo({ center: [selectedStop.x, selectedStop.y], zoom: Math.max(map.getZoom(), 14.5), duration: 600 })
-  }, [selectedStop, arrivals])
+  }, [selectedStop, arrivals, lang])
 
   // Push air-quality stations (recolors on pollutant change)
   useEffect(() => {
@@ -492,7 +493,7 @@ export default function MapView({
 }
 
 /** Arrivals board popup for a selected stop. */
-function boardPopupHTML(stop, arrivals) {
+function boardPopupHTML(stop, arrivals, lang) {
   const rows = (arrivals ?? [])
     .map(
       (a) => `
@@ -503,7 +504,8 @@ function boardPopupHTML(stop, arrivals) {
       </li>`,
     )
     .join('')
-  const body = arrivalsErrorOrEmpty(arrivals)
+  const body = arrivalsErrorOrEmpty(arrivals, lang)
+  const footer = lang === 'bg' ? 'Живи прогнози · Център за градска мобилност' : 'Live predictions · Center for Urban Mobility'
   return `
     <div class="board-popup" data-count="${arrivals?.length ?? 0}">
       <div class="board-title">
@@ -511,13 +513,21 @@ function boardPopupHTML(stop, arrivals) {
         ${stop.cs?.length ? `<span class="stop-code">${escapeHtml(stop.cs.join(' · '))}</span>` : ''}
       </div>
       ${body ?? `<ul class="board-list">${rows}</ul>`}
-      <div class="board-footer">Live predictions · Center for Urban Mobility</div>
+      <div class="board-footer">${footer}</div>
     </div>`
 }
 
-function arrivalsErrorOrEmpty(arrivals) {
-  if (!arrivals) return `<p class="board-empty">Loading arrivals …</p>`
-  if (arrivals.length === 0) return `<p class="board-empty">No upcoming arrivals in the live feed right now.</p>`
+function arrivalsErrorOrEmpty(arrivals, lang) {
+  if (!arrivals) {
+    return `<p class="board-empty">${lang === 'bg' ? 'Зареждане на пристиганията …' : 'Loading arrivals …'}</p>`
+  }
+  if (arrivals.length === 0) {
+    return `<p class="board-empty">${
+      lang === 'bg'
+        ? 'Няма предстоящи пристигания в живите данни в момента.'
+        : 'No upcoming arrivals in the live feed right now.'
+    }</p>`
+  }
   return null
 }
 
@@ -549,7 +559,7 @@ function escapeHtml(s) {
 }
 
 /** Air-quality station popup: all pollutants with band colors. */
-function aqPopupHTML(props) {  let values
+function aqPopupHTML(props, lang) {  let values
   try {
     values = JSON.parse(props.values ?? '{}')
   } catch {
@@ -574,8 +584,8 @@ function aqPopupHTML(props) {  let values
         <span class="aq-code">${escapeHtml(props.code)}</span>
       </div>
       <div class="aq-sub">${escapeHtml(props.area ?? '')}</div>
-      ${rows ? `<ul class="aq-list">${rows}</ul>` : '<p class="board-empty">No current readings.</p>'}
-      <div class="veh-id">EEA official monitoring · hourly</div>
+      ${rows ? `<ul class="aq-list">${rows}</ul>` : `<p class="board-empty">${lang === 'bg' ? 'Няма текущи измервания.' : 'No current readings.'}</p>`}
+      <div class="veh-id">${lang === 'bg' ? 'ИАОС официален мониторинг · на всеки час' : 'EEA official monitoring · hourly'}</div>
     </div>`
 }
 
@@ -592,14 +602,18 @@ function communityPopupHTML(props) {
     )
   }
   const ageMs = props.tsMs ? Date.now() - props.tsMs : null
-  const age = ageMs != null ? `${Math.max(0, Math.round(ageMs / 60000))} min ago` : ''
+  const mins = Math.max(0, Math.round(ageMs / 60000))
+  const age = ageMs != null ? (lang === 'bg' ? `преди ${mins} мин` : `${mins} min ago`) : ''
+  const title = lang === 'bg' ? `Граждански сензор №${escapeHtml(props.sid)}` : `Citizen sensor #${escapeHtml(props.sid)}`
+  const footer = lang === 'bg' ? 'Sensor.Community · нискобюджетен сензор' : 'Sensor.Community · low-cost sensor'
+  const indicative = lang === 'bg' ? 'индикативно' : 'indicative'
   return `
     <div class="aq-popup">
       <div class="aq-head">
-        <h2>Citizen sensor #${escapeHtml(props.sid)}</h2>
+        <h2>${title}</h2>
       </div>
-      <div class="aq-sub">${escapeHtml(props.type ?? '')} · indicative${age ? ` · ${age}` : ''}</div>
+      <div class="aq-sub">${escapeHtml(props.type ?? '')} · ${indicative}${age ? ` · ${age}` : ''}</div>
       ${rows.length ? `<ul class="aq-list">${rows.join('')}</ul>` : ''}
-      <div class="veh-id">Sensor.Community · low-cost sensor</div>
+      <div class="veh-id">${footer}</div>
     </div>`
 }

@@ -29,13 +29,19 @@ const BREAKPOINTS = {
 }
 
 const LEVELS = [
-  { level: 'good', label: 'Good', color: '#50f0e6' },
-  { level: 'fair', label: 'Fair', color: '#50ccaa' },
-  { level: 'moderate', label: 'Moderate', color: '#f0e641' },
-  { level: 'poor', label: 'Poor', color: '#ff5050' },
-  { level: 'very-poor', label: 'Very poor', color: '#960032' },
-  { level: 'extremely-poor', label: 'Extremely poor', color: '#7d2181' },
+  { level: 'good', label: 'Good', bg: 'Добро', color: '#50f0e6' },
+  { level: 'fair', label: 'Fair', bg: 'Приемливо', color: '#50ccaa' },
+  { level: 'moderate', label: 'Moderate', bg: 'Умерено', color: '#f0e641' },
+  { level: 'poor', label: 'Poor', bg: 'Лошо', color: '#ff5050' },
+  { level: 'very-poor', label: 'Very poor', bg: 'Много лошо', color: '#960032' },
+  { level: 'extremely-poor', label: 'Extremely poor', bg: 'Изключително лошо', color: '#7d2181' },
 ]
+
+/** Band label in the given language. */
+export function aqiBandLabel(band, lang = 'en') {
+  if (!band) return '—'
+  return lang === 'bg' ? (band.bg ?? band.label) : band.label
+}
 
 /** Band lookup for a pollutant feed key ('PM10', 'PM2.5', ...) and value. */
 export function aqiBand(feedKey, value) {

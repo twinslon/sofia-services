@@ -58,11 +58,11 @@ test.describe('air quality mode', () => {
 
     // Switch to NO2 — community sensors have no NO2 data, layer empties
     await page.locator('.chip', { hasText: 'NO₂' }).click()
-    const no2 = await page.evaluate(() => {
-      const m = window.__map
-      return m.queryRenderedFeatures({ layers: ['community-dot'] }).length
-    })
-    expect(no2).toBe(0)
+    await page.waitForFunction(
+      () => window.__map.queryRenderedFeatures({ layers: ['community-dot'] }).length === 0,
+      undefined,
+      { timeout: 10_000 },
+    )
   })
 
   test('station click opens popup with pollutant values and band colors', async ({ page }) => {

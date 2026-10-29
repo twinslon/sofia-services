@@ -507,6 +507,34 @@ body,
   gap: 5px;
 }
 
+/* ── Language switch ─────────────────────────────────────── */
+
+.lang-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.lang-btn {
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.lang-btn + .lang-btn {
+  border-left: 1px solid var(--border);
+}
+
+.lang-active {
+  color: var(--accent);
+  background: rgba(9, 105, 218, 0.1);
+}
+
 /* ── Alerts bell + panel ─────────────────────────────────── */
 
 .bell {

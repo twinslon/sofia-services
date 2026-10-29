@@ -36,16 +36,42 @@ export const MODES = {
 
 export const SOFIA_CENTER = [23.3219, 42.6977]
 
-/** GTFS-RT cause/effect enum labels */
-export const ALERT_CAUSES = {
-  1: 'Unknown', 2: 'Other', 3: 'Technical problem', 4: 'Strike', 5: 'Demonstration',
-  6: 'Accident', 7: 'Holiday', 8: 'Weather', 9: 'Maintenance', 10: 'Construction',
-  11: 'Police activity', 12: 'Medical emergency',
+const ALERT_CAUSES = {
+  1: { en: 'Unknown', bg: 'Неизвестно' },
+  2: { en: 'Other', bg: 'Друго' },
+  3: { en: 'Technical problem', bg: 'Техническа повреда' },
+  4: { en: 'Strike', bg: 'Стачка' },
+  5: { en: 'Demonstration', bg: 'Протест' },
+  6: { en: 'Accident', bg: 'Произшествие' },
+  7: { en: 'Holiday', bg: 'Празник' },
+  8: { en: 'Weather', bg: 'Времеви условия' },
+  9: { en: 'Maintenance', bg: 'Поддръжка' },
+  10: { en: 'Construction', bg: 'Строителни работи' },
+  11: { en: 'Police activity', bg: 'Дейност на полицията' },
+  12: { en: 'Medical emergency', bg: 'Спешна помощ' },
 }
-export const ALERT_EFFECTS = {
-  1: 'No service', 2: 'Reduced service', 3: 'Delays', 4: 'Detour',
-  5: 'Extra service', 6: 'Modified service', 7: 'Stop moved', 8: 'Other',
-  9: 'Notice', 10: 'Accessibility issue', 11: 'No effect',
+const ALERT_EFFECTS = {
+  1: { en: 'No service', bg: 'Сприрано движение' },
+  2: { en: 'Reduced service', bg: 'Намалено движение' },
+  3: { en: 'Delays', bg: 'Забавяния' },
+  4: { en: 'Detour', bg: 'Обходен маршрут' },
+  5: { en: 'Extra service', bg: 'Допълнителни рейсове' },
+  6: { en: 'Modified service', bg: 'Изменен режим' },
+  7: { en: 'Stop moved', bg: 'Преместена спирка' },
+  8: { en: 'Other', bg: 'Друго' },
+  9: { en: 'Notice', bg: 'Известие' },
+  10: { en: 'Accessibility issue', bg: 'Проблем с достъпността' },
+  11: { en: 'No effect', bg: 'Без ефект' },
+}
+
+export function alertCauseLabel(cause, lang = 'en') {
+  const c = ALERT_CAUSES[cause]
+  return c ? (lang === 'bg' ? c.bg : c.en) : ''
+}
+
+export function alertEffectLabel(effect, lang = 'en') {
+  const e = ALERT_EFFECTS[effect]
+  return e ? (lang === 'bg' ? e.bg : e.en) : ''
 }
 
 /** Fetch + decode a GTFS-RT feed into a plain entity list. */
@@ -115,14 +141,15 @@ function stripHtml(html) {
   return (doc.body?.textContent ?? '').replace(/\s+/g, ' ').trim()
 }
 
-/** "13 Oct – 3 Nov" / "from 13 Oct" / "until 3 Nov" */
-export function formatPeriod({ start, end }) {
+/** "13 Oct – 3 Nov" / "от 13 окт" — locale-aware period text. */
+export function formatPeriod({ start, end }, lang = 'en') {
+  const locale = lang === 'bg' ? 'bg-BG' : 'en-GB'
   const fmt = { day: 'numeric', month: 'short' }
-  const from = start ? new Date(start * 1000).toLocaleDateString('en-GB', fmt) : null
-  const to = end ? new Date(end * 1000).toLocaleDateString('en-GB', fmt) : null
-  if (from && to) return `${from} – ${to}`
-  if (from) return `from ${from}`
-  if (to) return `until ${to}`
+  const from = start ? new Date(start * 1000).toLocaleDateString(locale, fmt) : null
+  const to = end ? new Date(end * 1000).toLocaleDateString(locale, fmt) : null
+  if (from && to) return lang === 'bg' ? `${from} – ${to}` : `${from} – ${to}`
+  if (from) return lang === 'bg' ? `от ${from}` : `from ${from}`
+  if (to) return lang === 'bg' ? `до ${to}` : `until ${to}`
   return ''
 }
 

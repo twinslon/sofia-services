@@ -13,7 +13,8 @@ import {
   extractVehicles,
   fetchRealtimeFeed,
 } from './lib/transport.js'
-import { POLLUTANTS, UI_KEY_TO_FEED, aqiBand, aqiBandScale, buildAqFeatures, buildCommunityFeatures } from './lib/aq.js'
+import { useLang, LANGS } from './lib/i18n.jsx'
+import { POLLUTANTS, UI_KEY_TO_FEED, aqiBand, aqiBandLabel, aqiBandScale, buildAqFeatures, buildCommunityFeatures } from './lib/aq.js'
 
 const POLL_INTERVAL_MS = 10_000
 const ALERTS_POLL_INTERVAL_MS = 60_000
@@ -26,6 +27,7 @@ const FILTERS = [
 ]
 
 export default function App() {
+  const { lang, setLang, t } = useLang()
   const [staticData, setStaticData] = useState(null)
   const [vehiclesFC, setVehiclesFC] = useState(null)
   const [arrivalsIndex, setArrivalsIndex] = useState(null)
@@ -240,9 +242,9 @@ export default function App() {
             <p className="tagline">
               {service === 'transport'
                 ? staticData
-                  ? `${staticData.meta.counts.routes} lines · live city services, starting with public transport`
-                  : 'Loading network data …'
-                : 'Official air quality monitoring · EEA'}
+                  ? t('taglineTransport', { n: staticData.meta.counts.routes })
+                  : t('taglineLoading')
+                : t('taglineAir')}
             </p>
           </div>
         </div>
@@ -259,7 +261,7 @@ export default function App() {
                 if (s === 'air') setSelectedStopId(null)
               }}
             >
-              {s === 'transport' ? 'Transport' : 'Air'}
+              {t(s === 'transport' ? 'transportTab' : 'airTab')}
             </button>
           ))}
         </div>
@@ -277,7 +279,7 @@ export default function App() {
                 onClick={() => setModeFilter(f.key)}
               >
                 {f.key !== 'all' && <span className="dot" style={{ background: MODES[f.key].color }} />}
-                {f.label}
+                {t(`filter${f.key[0].toUpperCase()}${f.key.slice(1)}`)}
                 {f.key !== 'all' && modeCounts[f.key] ? <span className="count">{modeCounts[f.key]}</span> : null}
               </button>
             ))}
@@ -301,7 +303,7 @@ export default function App() {
         {service === 'transport' && alerts && (
           <button
             className={`bell ${alertsOpen ? 'bell-active' : ''}`}
-            aria-label={`Service alerts${alerts.length ? ` (${alerts.length})` : ''}`}
+            aria-label={`${t('bellAria')}${alerts.length ? ` (${alerts.length})` : ''}`}
             onClick={() => setAlertsOpen((o) => !o)}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -315,13 +317,25 @@ export default function App() {
         <div className={`status status-${status.state}`}>
           {service === 'air'
             ? aqUpdated
-              ? `Air quality · updated ${aqUpdated.toLocaleTimeString()} · hourly`
-              : 'Loading air quality …'
+              ? t('airStatusUpdated', { time: aqUpdated.toLocaleTimeString() })
+              : t('airStatusLoading')
             : status.state === 'loading'
-              ? 'Connecting to live feed …'
+              ? t('statusConnecting')
               : status.state === 'ok'
-                ? `${status.count} vehicles · updated ${status.updatedAt.toLocaleTimeString()}`
-                : `Feed error: ${status.message}`}
+                ? t('statusVehicles', { n: status.count, time: status.updatedAt.toLocaleTimeString() })
+                : t('statusFeedError', { msg: status.message })}
+        </div>
+
+        <div className="lang-switch" role="group" aria-label="Language">
+          {LANGS.map((l) => (
+            <button
+              key={l.code}
+              className={`lang-btn ${lang === l.code ? 'lang-active' : ''}`}
+              onClick={() => setLang(l.code)}
+            >
+              {l.label}
+            </button>
+          ))}
         </div>
       </header>
 
@@ -341,51 +355,54 @@ export default function App() {
           service={service}
           aqFC={aqFC}
           communityFC={communityFC}
+          lang={lang}
         />
 
         {service === 'air' && (
           <div className="aq-legend">
-            <div className="aq-legend-title">{POLLUTANTS[pollutant]?.label} · worst now: {aqBandForSelected?.label ?? '—'}</div>
+            <div className="aq-legend-title">
+              {t('legendWorst', { p: POLLUTANTS[pollutant]?.label, level: aqiBandLabel(aqBandForSelected, lang) })}
+            </div>
             <ul>
               {aqiBandScale().map((b) => (
                 <li key={b.level}>
                   <span className="aq-band-dot" style={{ background: b.color }} />
-                  {b.label}
+                  {aqiBandLabel(b, lang)}
                 </li>
               ))}
             </ul>
             {(['PM10', 'PM2_5'].includes(pollutant)) && (
               <div className="aq-legend-note">
-                <span className="community-dot-sample" /> citizen sensor (indicative)
+                <span className="community-dot-sample" /> {t('legendCitizen')}
               </div>
             )}
-            {aqUpdated && <div className="aq-legend-note">official: {aqUpdated.toLocaleTimeString()}</div>}
+            {aqUpdated && <div className="aq-legend-note">{t('legendOfficial', { time: aqUpdated.toLocaleTimeString() })}</div>}
           </div>
         )}
 
         {alertsOpen && staticData && (
           <div className="alerts-wrap">
-            <AlertsPanel alerts={alerts ?? []} routes={staticData.routes} onClose={() => setAlertsOpen(false)} />
+            <AlertsPanel alerts={alerts ?? []} routes={staticData.routes} lang={lang} onClose={() => setAlertsOpen(false)} />
           </div>
         )}
 
         <footer className="attribution">
           {service === 'air' ? (
             <>
-              Stations: EEA (official) ·{' '}
+              {t('attributionStations')} ·{' '}
               <a href="https://sensor.community" target="_blank" rel="noreferrer">
                 Sensor.Community
               </a>{' '}
-              citizen sensors (CC BY-SA) · Map © OpenStreetMap contributors · Tiles{' '}
+              (CC BY-SA) · Map © OpenStreetMap contributors · Tiles{' '}
               <a href="https://openfreemap.org" target="_blank" rel="noreferrer">
                 OpenFreeMap
               </a>
             </>
           ) : (
             <>
-              Data:{' '}
+              {t('attributionData')}{' '}
               <a href="https://www.sofiatraffic.bg/bg/info-center/gtfs-danni" target="_blank" rel="noreferrer">
-                Center for Urban Mobility (Sofia Traffic)
+                (Sofia Traffic)
               </a>{' '}
               · CC-BY-4.0 · Map © OpenStreetMap contributors · Tiles{' '}
               <a href="https://openfreemap.org" target="_blank" rel="noreferrer">
