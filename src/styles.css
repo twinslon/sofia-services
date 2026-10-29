@@ -402,6 +402,7 @@ body,
   border-radius: 10px;
   padding: 8px 12px;
   font-size: 12px;
+  pointer-events: none; /* purely informational — clicks pass through to the map */
 }
 
 .aq-legend-title {

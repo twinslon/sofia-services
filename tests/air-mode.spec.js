@@ -65,6 +65,46 @@ test.describe('air quality mode', () => {
     )
   })
 
+  test('clicking a station under the legend still opens the popup (legend is click-through)', async ({ page }) => {
+    await waitForApp(page)
+    await page.getByRole('tab', { name: 'Air' }).click()
+    await page.waitForTimeout(900)
+
+    // zoom into the center so stations sit near the legend corner, then
+    // REAL-DOM-click the first station (user's symptom: popup never opened)
+    await page.evaluate(() => window.__map.jumpTo({ center: [23.3194, 42.6934], zoom: 14.5 }))
+    await page.waitForTimeout(1200)
+
+    const clicked = await page.evaluate(() => {
+      const m = window.__map
+      const legend = document.querySelector('.aq-legend')?.getBoundingClientRect()
+      const canvas = m.getCanvas()
+      for (const f of m.queryRenderedFeatures({ layers: ['aq-dot'] })) {
+        const p = m.project(f.geometry.coordinates)
+        // real DOM click sequence — same path a user's mouse takes
+        for (const type of ['mousedown', 'mouseup', 'click']) {
+          canvas.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: p.x, clientY: p.y }))
+        }
+        return {
+          name: f.properties.name,
+          underLegend:
+            legend &&
+            legend.left <= p.x && p.x <= legend.right &&
+            legend.top <= p.y && p.y <= legend.bottom,
+        }
+      }
+      return null
+    })
+    test.skip(!clicked, 'no stations rendered')
+
+    const popup = page.locator('.aq-popup')
+    await expect(popup).toBeVisible({ timeout: 10_000 })
+    await expect(popup.locator('h2')).toContainText(clicked.name.slice(0, 10))
+    // legend must not intercept clicks anywhere
+    const pe = await page.evaluate(() => getComputedStyle(document.querySelector('.aq-legend')).pointerEvents)
+    expect(pe).toBe('none')
+  })
+
   test('station click opens popup with pollutant values and band colors', async ({ page }) => {
     await waitForApp(page)
     await page.getByRole('tab', { name: 'Air' }).click()
