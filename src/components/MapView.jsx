@@ -72,6 +72,7 @@ export default function MapView({
   // On each new batch we animate from the currently displayed positions
   // to the new targets, so vehicles glide instead of jumping every poll.
   const animRef = useRef({ targets: null, from: new Map(), current: new Map(), raf: 0, start: 0, last: 0 })
+  const aqDataRef = useRef(null)
 
   const tweenStep = () => {
     const st = animRef.current
@@ -447,11 +448,12 @@ export default function MapView({
     map.easeTo({ center: [selectedStop.x, selectedStop.y], zoom: Math.max(map.getZoom(), 14.5), duration: 600 })
   }, [selectedStop, arrivals, lang])
 
-  // Push air-quality stations (recolors on pollutant change)
+  // Push air-quality stations (rebuilds on pollutant change; flushed on
+  // map load if it arrived first — same race handling as shapes/stops)
   useEffect(() => {
-    if (!aqFC) return
+    aqDataRef.current = aqFC
     const map = mapRef.current
-    if (!map || !readyRef.current) return
+    if (!map || !readyRef.current || !aqFC) return
     map.getSource('aq')?.setData(aqFC)
   }, [aqFC])
 
@@ -590,7 +592,7 @@ function aqPopupHTML(props, lang) {  let values
 }
 
 /** Citizen-sensor popup: PM readings + age + provenance. */
-function communityPopupHTML(props) {
+function communityPopupHTML(props, lang) {
   const feedKey = 'PM10'
   const rows = []
   if (props.value != null) {

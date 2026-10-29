@@ -105,6 +105,33 @@ test.describe('air quality mode', () => {
     expect(pe).toBe('none')
   })
 
+  test('citizen sensor click opens its popup (real DOM coordinates)', async ({ page }) => {
+    await waitForApp(page)
+    await page.getByRole('tab', { name: 'Air' }).click()
+    await page.waitForTimeout(1200)
+
+    const clicked = await page.evaluate(() => {
+      const m = window.__map
+      const f = m.queryRenderedFeatures({ layers: ['community-dot'] })[0]
+      if (!f) return null
+      const p = m.project(f.geometry.coordinates)
+      const rect = m.getCanvas().getBoundingClientRect()
+      const cx = rect.left + p.x
+      const cy = rect.top + p.y
+      const canvas = m.getCanvas()
+      for (const type of ['mousedown', 'mouseup', 'click']) {
+        canvas.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: cx, clientY: cy }))
+      }
+      return { sid: f.properties.sid, value: f.properties.value }
+    })
+    test.skip(!clicked, 'no citizen sensors rendered')
+
+    const popup = page.locator('.aq-popup')
+    await expect(popup).toBeVisible()
+    await expect(popup.locator('h2')).toContainText(new RegExp(`#${clicked.sid}|№${clicked.sid}`))
+    await expect(popup.locator('.aq-list li').first()).toContainText('PM10')
+  })
+
   test('station click opens popup with pollutant values and band colors', async ({ page }) => {
     await waitForApp(page)
     await page.getByRole('tab', { name: 'Air' }).click()

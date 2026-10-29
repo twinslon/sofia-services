@@ -94,13 +94,14 @@ export function translate(lang, key, vars) {
 }
 
 export function detectLang() {
+  // English default; users switch via the БГ/EN toggle (persisted)
   try {
     const saved = localStorage.getItem('sofia-lang')
     if (saved === 'en' || saved === 'bg') return saved
   } catch {
     /* storage unavailable */
   }
-  return (navigator.language ?? 'en').toLowerCase().startsWith('bg') ? 'bg' : 'en'
+  return 'en'
 }
 
 const LangContext = createContext(null)
