@@ -62,11 +62,11 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 - [x] GitHub Pages deployment — CI test gate, daily cron rebuild refreshes GTFS extracts
 - [x] Mobile ergonomics — bottom-sheet panels, compact header, touch targets
 - [x] Smooth vehicle movement — positions tweened between polls (snap on GPS jumps)
-- [x] E2E + data-integrity test suite (Playwright, 30 tests) and Chrome DevTools MCP debugging
+- [x] bg/en UI toggle — Bulgarian + English chrome, auto-detected and persisted
+- [x] E2E + data-integrity test suite (Playwright, 34 tests) and Chrome DevTools MCP debugging
 
 ### Next up
 
-- [ ] bg/en UI toggle (GTFS translations.txt already carries both languages)
 - [ ] Air quality v2 — 48h history sparkline per station (the parquet files already carry the full series; bake it in fetch-aq)
 - [ ] Line explorer v2 — opt-in entry point (e.g. a line picker in the header) instead of map clicks, which misfired when aiming at vehicles
 
