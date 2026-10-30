@@ -471,6 +471,18 @@ body,
   border-bottom: 1px solid rgba(31, 35, 40, 0.06);
 }
 
+.aq-spark {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  line-height: 0;
+}
+
+.spark-empty {
+  display: inline-block;
+  width: 60px;
+}
+
 .aq-list li:last-child {
   border-bottom: 0;
 }

@@ -107,7 +107,8 @@ async function main() {
     .filter((l) => l.startsWith('http'))
   console.log(`parquet files: ${urls.length}`)
 
-  const byStation = new Map() // code -> { pollutant: {v, t} }
+  const byStation = new Map() // code -> { pollutant: {v, t, h: [[unixSec, value]]} }
+  const since = Date.now() - KEEP_HOURS * 3600e3
   let measures = 0
   for (const url of urls) {
     const file = await toArrayBuffer(fetchBlob(url))
@@ -118,18 +119,30 @@ async function main() {
       console.warn(`  skip unparseable file: ${url.split('/').pop()} (${e.message})`)
       continue
     }
-    // rows are chronological; keep the last valid value per pollutant
+    // rows are chronological; keep the last valid value + 48h history per pollutant
     for (const r of rows) {
       if (r.Validity !== 1 || r.Value == null) continue
+      const endMs = Date.parse(r.End)
+      if (!Number.isFinite(endMs) || endMs < since) continue
       const code = stationCodeOf(r.Samplingpoint)
       const pollutant = POLLUTANT_CODES[r.Pollutant]
       if (!code || !pollutant) continue
       const station = byStation.get(code) ?? byStation.set(code, {}).get(code)
-      station[pollutant] = { v: Math.round(r.Value * 100) / 100, t: r.End }
+      const cur = station[pollutant] ?? (station[pollutant] = { v: 0, t: '', h: [] })
+      const v = Math.round(r.Value * 100) / 100
+      cur.h.push([Math.round(endMs / 1000), v])
+      cur.v = v
+      cur.t = r.End
       measures++
     }
   }
-  console.log(`latest values captured: ${measures}`)
+  for (const st of byStation.values()) {
+    for (const p of Object.values(st)) {
+      p.h.sort((a, b) => a[0] - b[0])
+      p.h = p.h.slice(-KEEP_HOURS) // cap at 48 hourly points
+    }
+  }
+  console.log(`history points: ${measures}`)
 
   const out = {
     generated_at: new Date().toISOString(),

@@ -43,6 +43,24 @@ export function aqiBandLabel(band, lang = 'en') {
   return lang === 'bg' ? (band.bg ?? band.label) : band.label
 }
 
+/** Inline SVG trend line for [[unixSec, value], ...] history points. */
+export function sparklineSVG(points, color, w = 96, h = 22) {
+  if (!Array.isArray(points) || points.length < 2) return ''
+  const clean = points.filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+  if (clean.length < 2) return ''
+  const xs = clean.map((p) => p[0])
+  const vs = clean.map((p) => p[1])
+  const minX = Math.min(...xs)
+  const spanX = Math.max(...xs) - minX || 1
+  const minV = Math.min(...vs)
+  const spanV = Math.max(...vs) - minV || 1
+  const pt = ([t, v]) => `${(((t - minX) / spanX) * (w - 6) + 3).toFixed(1)},${(h - 3 - ((v - minV) / spanV) * (h - 6)).toFixed(1)}`
+  const lastPt = pt(clean[clean.length - 1]).split(',')
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">` +
+    `<polyline fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" points="${clean.map(pt).join(' ')}"/>` +
+    `<circle cx="${lastPt[0]}" cy="${lastPt[1]}" r="2.2" fill="${color}"/></svg>`
+}
+
 /** Band lookup for a pollutant feed key ('PM10', 'PM2.5', ...) and value. */
 export function aqiBand(feedKey, value) {
   const bp = BREAKPOINTS[feedKey]

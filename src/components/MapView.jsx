@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { MODES, SOFIA_CENTER, formatEta } from '../lib/transport.js'
-import { POLLUTANTS, aqiBand } from '../lib/aq.js'
+import { POLLUTANTS, aqiBand, aqiBandLabel, sparklineSVG } from '../lib/aq.js'
 
 // OpenFreeMap: free vector tiles, no API key, no watermark
 // https://openfreemap.org — styles: positron (light), dark, liberty, bright
@@ -560,8 +560,9 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 }
 
-/** Air-quality station popup: all pollutants with band colors. */
-function aqPopupHTML(props, lang) {  let values
+/** Air-quality station popup: all pollutants with band colors + 48h trends. */
+function aqPopupHTML(props, lang) {
+  let values
   try {
     values = JSON.parse(props.values ?? '{}')
   } catch {
@@ -571,11 +572,13 @@ function aqPopupHTML(props, lang) {  let values
     .map(([feedKey, r]) => {
       const meta = Object.values(POLLUTANTS).find((m) => m.key === feedKey) ?? { label: feedKey, unit: '' }
       const band = aqiBand(feedKey, r.v)
+      const spark = sparklineSVG(r.h, band?.color ?? '#0969da')
       return `<li>
         <span class="aq-band-dot" style="background:${band?.color ?? '#8c959f'}"></span>
         <span class="aq-poll">${escapeHtml(meta.label)}</span>
+        <span class="aq-spark">${spark || '<span class="spark-empty"></span>'}</span>
         <span class="aq-val">${r.v} ${escapeHtml(meta.unit)}</span>
-        <span class="aq-band">${escapeHtml(band?.label ?? '—')}</span>
+        <span class="aq-band">${escapeHtml(aqiBandLabel(band, lang))}</span>
       </li>`
     })
     .join('')
@@ -587,7 +590,7 @@ function aqPopupHTML(props, lang) {  let values
       </div>
       <div class="aq-sub">${escapeHtml(props.area ?? '')}</div>
       ${rows ? `<ul class="aq-list">${rows}</ul>` : `<p class="board-empty">${lang === 'bg' ? 'Няма текущи измервания.' : 'No current readings.'}</p>`}
-      <div class="veh-id">${lang === 'bg' ? 'ИАОС официален мониторинг · на всеки час' : 'EEA official monitoring · hourly'}</div>
+      <div class="veh-id">${lang === 'bg' ? 'ИАОС официален мониторинг · на всеки час · тренд 48ч' : 'EEA official monitoring · hourly · 48h trend'}</div>
     </div>`
 }
 

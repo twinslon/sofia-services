@@ -132,7 +132,7 @@ test.describe('air quality mode', () => {
     await expect(popup.locator('.aq-list li').first()).toContainText('PM10')
   })
 
-  test('station click opens popup with pollutant values and band colors', async ({ page }) => {
+  test('station click opens popup with pollutant values, bands and sparklines', async ({ page }) => {
     await waitForApp(page)
     await page.getByRole('tab', { name: 'Air' }).click()
 
@@ -154,5 +154,11 @@ test.describe('air quality mode', () => {
     // Each row: colored band dot + pollutant label + numeric value
     await expect(rows.first().locator('.aq-band-dot')).toBeVisible()
     await expect(rows.first().locator('.aq-val')).toHaveText(/\d/)
+    // Sparkline trend per pollutant (official stations bake 48h history)
+    const sparks = await popup.locator('svg.spark').count()
+    if (sparks === 0) {
+      test.info().annotations.push({ type: 'note', description: 'no history rows baked — check fetch-aq' })
+    }
+    await expect(popup.locator('svg.spark').first()).toBeAttached()
   })
 })

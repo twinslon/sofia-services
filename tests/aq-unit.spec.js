@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { aqiBand, aqiBandScale, buildAqFeatures, buildCommunityFeatures } from '../src/lib/aq.js'
+import { aqiBand, aqiBandScale, buildAqFeatures, buildCommunityFeatures, sparklineSVG } from '../src/lib/aq.js'
 
 test.describe('air quality index helpers', () => {
   test('bands map values to the right level', () => {
@@ -41,6 +41,17 @@ test.describe('air quality index helpers', () => {
     // PM2.5 uses the P2 value
     const pm25 = buildCommunityFeatures(sc, 'PM2_5')
     expect(pm25.features[0].properties.value).toBe(20)
+  })
+
+  test('sparklineSVG renders a trend for 2+ points and nothing for fewer', () => {
+    const svg = sparklineSVG([[1793200000, 20], [1793203600, 35], [1793207200, 12]], '#ff5050')
+    expect(svg).toContain('<svg')
+    expect(svg).toContain('<polyline')
+    expect(svg).toContain('#ff5050')
+    expect(svg).toContain('<circle')
+    expect(sparklineSVG([[1793200000, 20]], '#ff5050')).toBe('')
+    expect(sparklineSVG([], '#ff5050')).toBe('')
+    expect(sparklineSVG([[NaN, 1], [2, 3]], '#000')).toBe('')
   })
 
   test('buildAqFeatures colors stations by the selected pollutant', () => {
