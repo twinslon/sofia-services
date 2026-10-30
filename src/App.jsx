@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import MapView from './components/MapView.jsx'
 import StopSearch from './components/StopSearch.jsx'
 import AlertsPanel from './components/AlertsPanel.jsx'
+import LinePicker from './components/LinePicker.jsx'
+import LineExplorer from './components/LineExplorer.jsx'
 import {
   MODES,
   RT_URLS,
@@ -32,6 +34,8 @@ export default function App() {
   const [vehiclesFC, setVehiclesFC] = useState(null)
   const [arrivalsIndex, setArrivalsIndex] = useState(null)
   const [selectedStopId, setSelectedStopId] = useState(null)
+  const [selectedRouteId, setSelectedRouteId] = useState(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [modeFilter, setModeFilter] = useState('all')
   const [alerts, setAlerts] = useState(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
@@ -46,8 +50,8 @@ export default function App() {
     let cancelled = false
     ;(async () => {
       try {
-        const [routes, trips, shapes, stops, aliases, meta] = await Promise.all(
-          ['routes', 'trips', 'shapes', 'stops', 'stop-aliases', 'meta'].map((n) =>
+        const [routes, trips, shapes, stops, aliases, lines, meta] = await Promise.all(
+          ['routes', 'trips', 'shapes', 'stops', 'stop-aliases', 'lines', 'meta'].map((n) =>
             fetch(`${import.meta.env.BASE_URL}data/${n}.json`).then((r) => {
               if (!r.ok) throw new Error(`${n}.json: HTTP ${r.status} — run "npm run prepare-data"`)
               return r.json()
@@ -68,7 +72,7 @@ export default function App() {
               stopIdToRep[orig] = rep
             }
           }
-          setStaticData({ routes, trips, shapes, stops, stopsById, stopIdToRep, meta })
+          setStaticData({ routes, trips, shapes, stops, stopsById, stopIdToRep, lines, meta })
         }
       } catch (err) {
         if (!cancelled) setStatus((s) => ({ ...s, state: 'error', message: String(err.message || err) }))
@@ -213,6 +217,21 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStop, arrivalsIndex, staticData, status.updatedAt])
 
+  // Camera bounds of the selected line (from its stop coordinates)
+  const routeFocusBounds = useMemo(() => {
+    if (!selectedRouteId || !staticData) return null
+    const coords = Object.values(staticData.lines[selectedRouteId] ?? {}).flatMap((d) =>
+      d.stops.map((id) => staticData.stops[id]).filter(Boolean).map((s) => [s.x, s.y]),
+    )
+    if (coords.length === 0) return null
+    const xs = coords.map((c) => c[0])
+    const ys = coords.map((c) => c[1])
+    return [
+      [Math.min(...xs), Math.min(...ys)],
+      [Math.max(...xs), Math.max(...ys)],
+    ]
+  }, [selectedRouteId, staticData])
+
   const aqFC = useMemo(() => (service === 'air' ? buildAqFeatures(aqData, pollutant) : null), [
     service,
     aqData,
@@ -267,7 +286,16 @@ export default function App() {
         </div>
 
         {service === 'transport' && staticData && (
-          <StopSearch stops={staticData.stops} onSelect={(id) => setSelectedStopId(id)} />
+          <>
+            <button
+              className={`header-btn ${pickerOpen ? 'header-btn-active' : ''}`}
+              aria-label={t('linesButton')}
+              onClick={() => setPickerOpen((o) => !o)}
+            >
+              ☰ {t('linesButton')}
+            </button>
+            <StopSearch stops={staticData.stops} onSelect={(id) => setSelectedStopId(id)} />
+          </>
         )}
 
         {service === 'transport' && (
@@ -356,7 +384,39 @@ export default function App() {
           aqFC={aqFC}
           communityFC={communityFC}
           lang={lang}
+          selectedRouteId={selectedRouteId}
+          focusBounds={routeFocusBounds}
         />
+
+        {pickerOpen && staticData && (
+          <div className="alerts-wrap">
+            <LinePicker
+              lines={staticData.lines}
+              routes={staticData.routes}
+              onSelect={(routeId) => {
+                setSelectedRouteId(routeId)
+                setPickerOpen(false)
+              }}
+              onClose={() => setPickerOpen(false)}
+            />
+          </div>
+        )}
+
+        {selectedRouteId && staticData && (
+          <div className="alerts-wrap">
+            <LineExplorer
+              routeId={selectedRouteId}
+              route={staticData.routes[selectedRouteId]}
+              lines={staticData.lines}
+              stops={staticData.stops}
+              trips={staticData.trips}
+              arrivalsIndex={arrivalsIndex}
+              alerts={alerts}
+              onSelectStop={setSelectedStopId}
+              onClose={() => setSelectedRouteId(null)}
+            />
+          </div>
+        )}
 
         {service === 'air' && (
           <div className="aq-legend">

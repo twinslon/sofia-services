@@ -48,6 +48,8 @@ export default function MapView({
   aqFC,
   communityFC,
   lang,
+  selectedRouteId,
+  focusBounds,
 }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
@@ -175,6 +177,20 @@ export default function MapView({
           'line-opacity': 0.9,
           'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.6, 14, 3],
           'line-dasharray': [2, 1.4],
+        },
+      })
+
+      // Selected line — bold highlight above alert overlay
+      map.addLayer({
+        id: 'shapes-selected',
+        type: 'line',
+        source: 'shapes',
+        filter: ['==', ['get', 'routeId'], ''],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': ['coalesce', ['get', 'color'], ACCENT],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 3, 14, 5],
+          'line-opacity': 0.95,
         },
       })
 
@@ -490,6 +506,23 @@ export default function MapView({
       map.setFilter(layer, filter)
     }
   }, [modeFilter])
+
+  // Selected line: highlight it and dim the rest of the network
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+    map.setFilter('shapes-selected', ['==', ['get', 'routeId'], selectedRouteId ?? ''])
+    const dim = selectedRouteId ? 0.12 : null
+    map.setPaintProperty('shapes-line', 'line-opacity', dim ?? 0.45)
+    map.setPaintProperty('shapes-alert', 'line-opacity', dim ?? 0.9)
+  }, [selectedRouteId])
+
+  // Camera focus bounds (when a line is picked)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !readyRef.current || !focusBounds) return
+    map.fitBounds(focusBounds, { padding: 60, maxZoom: 15, duration: 700 })
+  }, [focusBounds])
 
   return <div ref={containerRef} className="map" />
 }

@@ -548,6 +548,206 @@ body,
   background: rgba(9, 105, 218, 0.1);
 }
 
+/* ── Header utility buttons ──────────────────────────────── */
+
+.header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.header-btn:hover,
+.header-btn-active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Line picker + explorer ──────────────────────────────── */
+
+.line-picker {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  backdrop-filter: blur(8px);
+}
+
+.picker-search {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+}
+
+.picker-search:focus {
+  border-color: var(--accent);
+}
+
+.picker-groups {
+  margin-top: 10px;
+  max-height: min(52vh, 460px);
+  overflow: auto;
+}
+
+.picker-group {
+  margin-bottom: 10px;
+}
+
+.picker-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+.picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--text);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.picker-row:hover {
+  background: rgba(9, 105, 218, 0.08);
+}
+
+.picker-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-dir {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(31, 35, 40, 0.08);
+}
+
+.dir-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dir-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dir-count {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.dir-departures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+
+.dep {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ok);
+  background: rgba(26, 127, 55, 0.08);
+  border: 1px solid rgba(26, 127, 55, 0.25);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.dep-running {
+  animation: dep-pulse 2s infinite;
+}
+
+@keyframes dep-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.dir-stops {
+  margin: 6px 0 0;
+  padding: 0 0 0 4px;
+  list-style: none;
+}
+
+.dir-stops button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--text);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dir-stops button:hover {
+  background: rgba(9, 105, 218, 0.08);
+}
+
+.stop-seq {
+  position: relative;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--bg);
+}
+
+.dir-stops li {
+  position: relative;
+}
+
+.dir-stops li:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 10.5px;
+  top: 20px;
+  bottom: -6px;
+  width: 2px;
+  background: var(--border);
+}
+
+.dir-stops .stop-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── Alerts bell + panel ─────────────────────────────────── */
 
 .bell {
