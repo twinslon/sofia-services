@@ -128,6 +128,21 @@ test.describe('prepared GTFS extracts', () => {
     }
   })
 
+  test('parking: Sofia bake with bike/car/EV layers', () => {
+    const d = JSON.parse(readFileSync(new URL('../public/data/parking.json', import.meta.url)))
+    expect(d.features.length).toBeGreaterThan(500)
+    expect(d.counts.bike).toBeGreaterThan(100)
+    expect(d.counts.car).toBeGreaterThan(500)
+    expect(d.counts.ev).toBeGreaterThan(100)
+    expect(d.counts.bike + d.counts.car + d.counts.ev).toBe(d.features.length)
+    for (const f of d.features.slice(0, 300)) {
+      if (!(f.lon > 22.8 && f.lon < 23.9 && f.lat > 42.4 && f.lat < 43.1)) {
+        throw new Error(`parking feature ${f.id} out of bounds`)
+      }
+      if (!['bike', 'car', 'ev'].includes(f.type)) throw new Error(`unknown type ${f.type}`)
+    }
+  })
+
   test('meta: counts match the extracts and timestamp parses', () => {
     const meta = data('meta')
     expect(meta.counts.routes).toBe(Object.keys(data('routes')).length)

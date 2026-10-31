@@ -16,6 +16,7 @@ import {
   fetchRealtimeFeed,
 } from './lib/transport.js'
 import { useLang, LANGS } from './lib/i18n.jsx'
+import { PARKING_LAYERS, buildParkingFC } from './lib/parking.js'
 import { POLLUTANTS, UI_KEY_TO_FEED, aqiBand, aqiBandLabel, aqiBandScale, buildAqFeatures, buildCommunityFeatures } from './lib/aq.js'
 
 const POLL_INTERVAL_MS = 10_000
@@ -43,6 +44,8 @@ export default function App() {
   const [pollutant, setPollutant] = useState('PM10')
   const [aqData, setAqData] = useState(null)
   const [scData, setScData] = useState(null)
+  const [parkingData, setParkingData] = useState(null)
+  const [parkingLayers, setParkingLayers] = useState(() => new Set(['bike', 'car', 'ev']))
   const [status, setStatus] = useState({ state: 'loading', count: 0, updatedAt: null })
 
   // Load the prepared static GTFS extracts
@@ -158,6 +161,19 @@ export default function App() {
     }
   }, [service])
 
+  // Parking (OSM bake, daily): load once on entering Parking mode
+  useEffect(() => {
+    if (service !== 'parking') return
+    let cancelled = false
+    fetch(`${import.meta.env.BASE_URL}data/parking.json`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d) => !cancelled && setParkingData(d))
+      .catch(() => !cancelled && setParkingData({ features: [] }))
+    return () => {
+      cancelled = true
+    }
+  }, [service])
+
   // Poll the alerts feed on a slower cadence (it changes rarely)
   useEffect(() => {
     let cancelled = false
@@ -232,11 +248,17 @@ export default function App() {
     ]
   }, [selectedRouteId, staticData])
 
+  // Air-mode FC and parking-mode FC
   const aqFC = useMemo(() => (service === 'air' ? buildAqFeatures(aqData, pollutant) : null), [
     service,
     aqData,
     pollutant,
   ])
+
+  const parkingFC = useMemo(
+    () => (service === 'parking' ? buildParkingFC(parkingData, parkingLayers) : null),
+    [service, parkingData, parkingLayers],
+  )
 
   const communityFC = useMemo(
     () => (service === 'air' ? buildCommunityFeatures(scData, pollutant) : null),
@@ -263,13 +285,15 @@ export default function App() {
                 ? staticData
                   ? t('taglineTransport', { n: staticData.meta.counts.routes })
                   : t('taglineLoading')
-                : t('taglineAir')}
+                : service === 'air'
+                  ? t('taglineAir')
+                  : t('taglineParking')}
             </p>
           </div>
         </div>
 
         <div className="service-switch" role="tablist" aria-label="Service">
-          {['transport', 'air'].map((s) => (
+          {['transport', 'air', 'parking'].map((s) => (
             <button
               key={s}
               role="tab"
@@ -280,7 +304,7 @@ export default function App() {
                 if (s === 'air') setSelectedStopId(null)
               }}
             >
-              {t(s === 'transport' ? 'transportTab' : 'airTab')}
+              {t(s === 'transport' ? 'transportTab' : s === 'air' ? 'airTab' : 'parkingTab')}
             </button>
           ))}
         </div>
@@ -328,6 +352,28 @@ export default function App() {
           </nav>
         )}
 
+        {service === 'parking' && (
+          <nav className="filters" aria-label="Parking layers">
+            {PARKING_LAYERS.map((l) => (
+              <button
+                key={l.key}
+                className={`chip ${parkingLayers.has(l.key) ? 'chip-active' : ''}`}
+                onClick={() =>
+                  setParkingLayers((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(l.key)) next.delete(l.key)
+                    else next.add(l.key)
+                    return next
+                  })
+                }
+              >
+                <span className="dot" style={{ background: l.color }} />
+                {lang === 'bg' ? l.bg : l.label}
+              </button>
+            ))}
+          </nav>
+        )}
+
         {service === 'transport' && alerts && (
           <button
             className={`bell ${alertsOpen ? 'bell-active' : ''}`}
@@ -347,6 +393,13 @@ export default function App() {
             ? aqUpdated
               ? t('airStatusUpdated', { time: aqUpdated.toLocaleTimeString() })
               : t('airStatusLoading')
+            : service === 'parking'
+              ? parkingData
+                ? t('parkingStatus', {
+                    n: parkingData.features.length,
+                    time: new Date(parkingData.generated_at).toLocaleDateString(),
+                  })
+                : t('parkingLoading')
             : status.state === 'loading'
               ? t('statusConnecting')
               : status.state === 'ok'
@@ -383,6 +436,7 @@ export default function App() {
           service={service}
           aqFC={aqFC}
           communityFC={communityFC}
+          parkingFC={parkingFC}
           lang={lang}
           selectedRouteId={selectedRouteId}
           focusBounds={routeFocusBounds}

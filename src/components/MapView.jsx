@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { MODES, SOFIA_CENTER, formatEta } from '../lib/transport.js'
 import { POLLUTANTS, aqiBand, aqiBandLabel, sparklineSVG } from '../lib/aq.js'
+import { parkingRows } from '../lib/parking.js'
 
 // OpenFreeMap: free vector tiles, no API key, no watermark
 // https://openfreemap.org — styles: positron (light), dark, liberty, bright
@@ -47,6 +48,7 @@ export default function MapView({
   service,
   aqFC,
   communityFC,
+  parkingFC,
   lang,
   selectedRouteId,
   focusBounds,
@@ -337,7 +339,23 @@ export default function MapView({
         },
       })
 
-      // Interactions — one click handler, clear priority: vehicles > stops
+      // Parking & charging (Parking mode)
+      map.addSource('parking', { type: 'geojson', data: emptyFC() })
+      map.addLayer({
+        id: 'parking-dot',
+        type: 'circle',
+        source: 'parking',
+        layout: { visibility: 'none' },
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 4, 14, 6.5],
+          'circle-color': ['get', 'color'],
+          'circle-opacity': 0.95,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+        },
+      })
+
+      // Interactions — one click handler, mode-dependent
       map.on('click', (e) => {
         if (serviceRef.current === 'air') {
           const stations = map.queryRenderedFeatures(e.point, { layers: ['aq-dot'] })
@@ -355,6 +373,17 @@ export default function MapView({
             popupRef.current = new maplibregl.Popup({ closeButton: false, offset: 8, maxWidth: '240px' })
               .setLngLat(e.lngLat)
               .setHTML(communityPopupHTML(community[0].properties, propsRef.current.lang))
+              .addTo(map)
+          }
+          return
+        }
+        if (serviceRef.current === 'parking') {
+          const spots = map.queryRenderedFeatures(e.point, { layers: ['parking-dot'] })
+          if (spots.length > 0) {
+            popupRef.current?.remove()
+            popupRef.current = new maplibregl.Popup({ offset: 10, maxWidth: '260px' })
+              .setLngLat(e.lngLat)
+              .setHTML(parkingPopupHTML(spots[0].properties, propsRef.current.lang))
               .addTo(map)
           }
           return
@@ -378,7 +407,9 @@ export default function MapView({
         const layers =
           serviceRef.current === 'air'
             ? ['aq-dot', 'community-dot']
-            : ['vehicles-core', 'stops-dot']
+            : serviceRef.current === 'parking'
+              ? ['parking-dot']
+              : ['vehicles-core', 'stops-dot']
         const hit = map.queryRenderedFeatures(e.point, { layers })
         map.getCanvas().style.cursor = hit.length > 0 ? 'pointer' : ''
       })
@@ -486,16 +517,24 @@ export default function MapView({
     if (!map || !readyRef.current) return
     const transport = ['shapes-line', 'shapes-alert', 'stops-dot', 'stops-selected', 'vehicles-halo', 'vehicles-core', 'vehicles-label']
     const air = ['aq-halo', 'aq-dot', 'aq-label', 'community-dot']
+    const parking = ['parking-dot']
     const show = (layers, visible) => {
       for (const l of layers) {
         if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', visible ? 'visible' : 'none')
       }
     }
-    const isAir = service === 'air'
-    show(transport, !isAir)
-    show(air, isAir)
+    show(transport, service === 'transport')
+    show(air, service === 'air')
+    show(parking, service === 'parking')
     map.getCanvas().style.cursor = ''
   }, [service])
+
+  // Push parking features (built only in Parking mode)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !readyRef.current || !parkingFC) return
+    map.getSource('parking')?.setData(parkingFC)
+  }, [parkingFC])
 
   // Apply mode filter to all layers
   useEffect(() => {
@@ -627,8 +666,7 @@ function aqPopupHTML(props, lang) {
     </div>`
 }
 
-/** Citizen-sensor popup: PM readings + age + provenance. */
-function communityPopupHTML(props, lang) {
+/** Citizen-sensor popup: PM readings + age + provenance. */function communityPopupHTML(props, lang) {
   const feedKey = 'PM10'
   const rows = []
   if (props.value != null) {
@@ -653,5 +691,32 @@ function communityPopupHTML(props, lang) {
       <div class="aq-sub">${escapeHtml(props.type ?? '')} · ${indicative}${age ? ` · ${age}` : ''}</div>
       ${rows.length ? `<ul class="aq-list">${rows.join('')}</ul>` : ''}
       <div class="veh-id">${footer}</div>
+    </div>`
+}
+
+/** Parking spot popup: name + capacity/access/fee/operator details. */
+function parkingPopupHTML(props, lang) {
+  const colors = { bike: '#2563eb', car: '#7c3aed', ev: '#16a34a' }
+  const labels = {
+    en: { bike: 'Bike parking', car: 'Car park', ev: 'EV charging' },
+    bg: { bike: 'Велопаркинг', car: 'Паркинг', ev: 'Е-зарядна станция' },
+  }
+  const typeLabel = labels[lang]?.[props.type] ?? labels.en[props.type] ?? props.type
+  const detailRows = parkingRows(props, lang)
+    .map(
+      (r) =>
+        `<li><span class="aq-poll">${escapeHtml(r.label)}</span>` +
+        `<span class="aq-val">${escapeHtml(r.value)}</span></li>`,
+    )
+    .join('')
+  return `
+    <div class="aq-popup">
+      <div class="aq-head">
+        <span class="line-badge" style="background:${colors[props.type] ?? '#8c959f'}">⏵</span>
+        <h2>${props.name ? escapeHtml(props.name) : typeLabel}</h2>
+      </div>
+      <div class="aq-sub">${escapeHtml(typeLabel)}</div>
+      ${detailRows ? `<ul class="aq-list">${detailRows}</ul>` : ''}
+      <div class="veh-id">OpenStreetMap · ODbL</div>
     </div>`
 }
