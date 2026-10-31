@@ -397,7 +397,7 @@ export default function App() {
               ? parkingData
                 ? t('parkingStatus', {
                     n: parkingData.features.length,
-                    time: new Date(parkingData.generated_at).toLocaleDateString(),
+                    date: new Date(parkingData.generated_at).toLocaleDateString(),
                   })
                 : t('parkingLoading')
             : status.state === 'loading'
