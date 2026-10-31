@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sofia Services — жива карта на София: транспорт, въздух и паркиране</title>
+  <meta name="description" content="Безплатна интерактивна карта на София с живи превозни средства в реално време, спирки със секващи пристигания, сигнали за движението, качество на въздуха и паркиране. Изградена върху открити данни." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Sofia Services — жива карта на София" />
+  <meta property="og:description" content="Живи превозни средства, пристигания по спирки, сигнали за движението, качество на въздуха и паркиране — на една карта, върху открити данни." />
+  <meta property="og:url" content="https://twinslon.github.io/sofia-services/about.html" />
+  <style>
+    :root { --bg: #ffffff; --panel: #f6f8fa; --border: #d1d9e0; --text: #1f2328; --muted: #59636e; --accent: #0969da; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Noto Sans', 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 60px; }
+    h1 { font-size: 26px; margin: 0 0 6px; }
+    h2 { font-size: 19px; margin: 32px 0 10px; }
+    .cta { display: inline-block; margin: 14px 0 4px; padding: 12px 22px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; border-radius: 10px; }
+    .cta:hover { opacity: 0.92; }
+    .muted { color: var(--muted); font-size: 14px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    a { color: var(--accent); }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; font-size: 12px; margin-right: 6px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Sofia Services</h1>
+    <p class="muted">Жива карта на София: обществен транспорт, качество на въздуха и паркиране — на едно място, безплатно и с открити данни.</p>
+    <a class="cta" href="/">→ Отвори живата карта</a>
+    <p><video src="/demo.mp4" controls muted playsinline style="width:100%;max-width:560px;border:1px solid var(--border);border-radius:10px;"></video></p>
+
+    <h2>Какво виждаш в картата</h2>
+    <ul>
+      <li><strong>Транспорт в реално време</strong> — всички автобуси, трамваи, тролейбуси и метростанции, движещи се на живо. Кликни върху спирка → пристигащите превозни средства. Кликни върху транспортно средство → линията, посоката и следващите спирки.</li>
+      <li><strong>Сигнали за движението</strong> — временни организации, изменени маршрути и закрити спирки, с подчертани засегнати линии.</li>
+      <li><strong>Линии и разписания по маршрути</strong> — избери линия и виж двете посоки, всички спирки по ред и следващите рейсове.</li>
+      <li><strong>Качество на въздуха</strong> — 6 официални станции на ИАОС с история за последните 48 часа + над 300 граждански сензора от Sensor.Community по целия град.</li>
+      <li><strong>Паркиране и е-зареждане</strong> — над 6 000 паркоместа, паркинги и зарядни станции от OpenStreetMap.</li>
+    </ul>
+
+    <h2>Открити данни, върху които е построено</h2>
+    <table>
+      <tr><th>Данни</th><th>Източник</th><th>Лиценз</th></tr>
+      <tr><td>Транспорт (GTFS + реално време)</td><td>Център за градска мобилност — sofiatraffic.bg</td><td>CC BY 4.0</td></tr>
+      <tr><td>Качество на въздуха (официални станции)</td><td>European Environment Agency — Air Quality Download Service</td><td>Открит</td></tr>
+      <tr><td>Граждански сензори за въздуха</td><td>Sensor.Community</td><td>CC BY-SA 4.0</td></tr>
+      <tr><td>Паркиране и е-зареждане</td><td>OpenStreetMap contributors</td><td>ODbL</td></tr>
+      <tr><td>Базова карта</td><td>OpenStreetMap · OpenFreeMap</td><td>ODbL / CC-BY</td></tr>
+    </table>
+
+    <h2>Как работи</h2>
+    <p>Приложението е напълно статично и работи директно в браузъра: извлича официалните GTFS и GTFS-Realtime данни на Центъра за градска мобилност (позициите на превозните средства, пристиганията и сигнали), официалните измервания на качеството на въздуха от Европейската агенция по околна среда и данни за паркирането от OpenStreetMap. Без акаунти, без проследяване с бисквитки, без реклама.</p>
+
+    <h2>Отворен код</h2>
+    <p>Целият код е публичен — built with Vite, React и MapLibre GL. Насърчаваме проблемите (issues), идеите и сътрудничеството:</p>
+    <p><a href="https://github.com/twinslon/sofia-services">github.com/twinslon/sofia-services</a></p>
+
+    <p class="muted">Проект от гражданин за гражданите. Ако ти е полезно — сподели го.</p>
+  </div>
+</body>
+</html>

@@ -17,6 +17,7 @@ import {
 } from './lib/transport.js'
 import { useLang, LANGS } from './lib/i18n.jsx'
 import { PARKING_LAYERS, buildParkingFC } from './lib/parking.js'
+import { initAnalytics, trackPage } from './lib/analytics.js'
 import { POLLUTANTS, UI_KEY_TO_FEED, aqiBand, aqiBandLabel, aqiBandScale, buildAqFeatures, buildCommunityFeatures } from './lib/aq.js'
 
 const POLL_INTERVAL_MS = 10_000
@@ -31,6 +32,7 @@ const FILTERS = [
 
 export default function App() {
   const { lang, setLang, t } = useLang()
+  useEffect(() => initAnalytics(), [])
   const [staticData, setStaticData] = useState(null)
   const [vehiclesFC, setVehiclesFC] = useState(null)
   const [arrivalsIndex, setArrivalsIndex] = useState(null)
@@ -524,6 +526,9 @@ export default function App() {
               </a>
             </>
           )}
+          {' · '}
+          <a href={`${import.meta.env.BASE_URL}about.html`}>{t('aboutLink')}</a>
+        </footer>
         </footer>
       </main>
     </div>

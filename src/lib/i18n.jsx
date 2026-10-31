@@ -58,6 +58,7 @@ const STRINGS = {
     attributionData: 'Data: Center for Urban Mobility (Sofia Traffic)',
     attributionStations: 'Stations: EEA (official)',
     attributionCommunity: 'Sensor.Community citizen sensors (CC BY-SA)',
+    aboutLink: 'About the project',
   },
   bg: {
     transportTab: 'Транспорт',
@@ -106,6 +107,7 @@ const STRINGS = {
     attributionData: 'Данни: Център за градска мобилност',
     attributionStations: 'Станции: ИАОС (официални)',
     attributionCommunity: 'Граждански сензори от Sensor.Community (CC BY-SA)',
+    aboutLink: 'За проекта',
   },
 }
 
