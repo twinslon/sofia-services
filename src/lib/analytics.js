@@ -7,7 +7,7 @@
  * Empty string = no requests are made at all.
  */
 
-const GOATCOUNTER_SITE = ''
+const GOATCOUNTER_SITE = 'twinslon' // https://twinslon.goatcounter.com — free non-commercial plan
 
 export function initAnalytics() {
   if (!GOATCOUNTER_SITE) return
