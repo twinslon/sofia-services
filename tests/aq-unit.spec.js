@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { aqiBand, aqiBandScale, buildAqFeatures, buildCommunityFeatures, sparklineSVG } from '../src/lib/aq.js'
+import { aqiBand, aqiBandScale, buildAqFeatures, buildCommunityFeatures, sparklineSVG, worstBand } from '../src/lib/aq.js'
 
 test.describe('air quality index helpers', () => {
   test('bands map values to the right level', () => {
@@ -52,6 +52,18 @@ test.describe('air quality index helpers', () => {
     expect(sparklineSVG([[1793200000, 20]], '#ff5050')).toBe('')
     expect(sparklineSVG([], '#ff5050')).toBe('')
     expect(sparklineSVG([[NaN, 1], [2, 3]], '#000')).toBe('')
+  })
+
+  test('worstBand picks by severity, not alphabetically', () => {
+    const bands = [aqiBand('PM10', 120), aqiBand('PM10', 500)] // very-poor, extremely-poor
+    const worst = worstBand(bands)
+    expect(worst.level).toBe('extremely-poor') // alphabetical sort would pick very-poor
+  })
+
+  test('community features carry their pollutant feed key', () => {
+    const sc = { sensors: [{ id: 1, type: 'SDS011', lat: 42.7, lon: 23.3, timestamp: '2026-10-28 18:52:28', P1: 35, P2: 20 }] }
+    const fc = buildCommunityFeatures(sc, 'PM2_5')
+    expect(fc.features[0].properties.pollutant).toBe('PM2.5')
   })
 
   test('buildAqFeatures colors stations by the selected pollutant', () => {

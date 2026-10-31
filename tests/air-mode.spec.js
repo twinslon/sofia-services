@@ -65,6 +65,59 @@ test.describe('air quality mode', () => {
     )
   })
 
+  test('service visibility replays when the map finishes loading late', async ({ page }) => {
+    // Delay the basemap style so the map loads well AFTER we switch to Air —
+    // regression test: UI state set pre-load was silently dropped
+    await page.route('**/styles/positron**', async (route) => {
+      await new Promise((r) => setTimeout(r, 3000))
+      return route.continue()
+    })
+    await page.goto('/?static-vehicles')
+
+    // Switch to Air immediately — before the map has even started loading
+    await page.getByRole('tab', { name: 'Air' }).click()
+    await page.waitForSelector('.status.status-ok', { timeout: 60_000 })
+    await page.waitForFunction(() => window.__map?.loaded?.() === true, undefined, { timeout: 60_000 })
+    await page.waitForFunction(
+      () => window.__map.queryRenderedFeatures({ layers: ['aq-dot'] }).length > 0,
+      undefined,
+      { timeout: 30_000 },
+    )
+
+    const state = await page.evaluate(() => ({
+      aqVisible: window.__map.getLayoutProperty('aq-dot', 'visibility') === 'visible',
+      transportHidden: window.__map.getLayoutProperty('vehicles-core', 'visibility') === 'none',
+    }))
+    expect(state.aqVisible).toBe(true)
+    expect(state.transportHidden).toBe(true)
+  })
+
+  test('citizen popup uses the selected pollutant (PM2.5, not hardcoded PM10)', async ({ page }) => {
+    await waitForApp(page)
+    await page.getByRole('tab', { name: 'Air' }).click()
+    await page.locator('.chip', { hasText: 'PM2.5' }).click()
+    await page.waitForTimeout(500)
+
+    const clicked = await page.evaluate(() => {
+      const m = window.__map
+      const f = m.queryRenderedFeatures({ layers: ['community-dot'] })[0]
+      if (!f) return null
+      const p = m.project(f.geometry.coordinates)
+      const rect = m.getCanvas().getBoundingClientRect()
+      const cx = rect.left + p.x, cy = rect.top + p.y
+      const canvas = m.getCanvas()
+      for (const type of ['mousedown', 'mouseup', 'click']) {
+        canvas.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: cx, clientY: cy }))
+      }
+      return { pollutant: f.properties.pollutant, value: f.properties.value }
+    })
+    test.skip(!clicked, 'no citizen sensors rendered')
+
+    const popup = page.locator('.aq-popup')
+    await expect(popup).toBeVisible()
+    await expect(popup.locator('.aq-poll').first()).toHaveText('PM2.5')
+  })
+
   test('clicking a station under the legend still opens the popup (legend is click-through)', async ({ page }) => {
     await waitForApp(page)
     await page.getByRole('tab', { name: 'Air' }).click()

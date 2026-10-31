@@ -29,13 +29,22 @@ const BREAKPOINTS = {
 }
 
 const LEVELS = [
-  { level: 'good', label: 'Good', bg: 'Добро', color: '#50f0e6' },
-  { level: 'fair', label: 'Fair', bg: 'Приемливо', color: '#50ccaa' },
-  { level: 'moderate', label: 'Moderate', bg: 'Умерено', color: '#f0e641' },
-  { level: 'poor', label: 'Poor', bg: 'Лошо', color: '#ff5050' },
-  { level: 'very-poor', label: 'Very poor', bg: 'Много лошо', color: '#960032' },
-  { level: 'extremely-poor', label: 'Extremely poor', bg: 'Изключително лошо', color: '#7d2181' },
+  { level: 'good', rank: 0, label: 'Good', bg: 'Добро', color: '#50f0e6' },
+  { level: 'fair', rank: 1, label: 'Fair', bg: 'Приемливо', color: '#50ccaa' },
+  { level: 'moderate', rank: 2, label: 'Moderate', bg: 'Умерено', color: '#f0e641' },
+  { level: 'poor', rank: 3, label: 'Poor', bg: 'Лошо', color: '#ff5050' },
+  { level: 'very-poor', rank: 4, label: 'Very poor', bg: 'Много лошо', color: '#960032' },
+  { level: 'extremely-poor', rank: 5, label: 'Extremely poor', bg: 'Изключително лошо', color: '#7d2181' },
 ]
+
+/** The most severe band in a list (by explicit rank, not name). */
+export function worstBand(bands) {
+  let worst = null
+  for (const b of bands ?? []) {
+    if (b && (!worst || b.rank > worst.rank)) worst = b
+  }
+  return worst
+}
 
 /** Band label in the given language. */
 export function aqiBandLabel(band, lang = 'en') {
@@ -127,6 +136,7 @@ export function buildCommunityFeatures(scData, selectedUiKey) {
         properties: {
           sid: s.id,
           type: s.type,
+          pollutant: feedKey, // popup must label/band with THIS pollutant, not a hardcoded one
           color: band?.color ?? '#8c959f',
           level: band?.level ?? 'none',
           value: v,

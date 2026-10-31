@@ -56,10 +56,14 @@ export default function MapView({
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const readyRef = useRef(false)
-  const dataRef = useRef({ shapes: null, vehicles: null, stops: null })
+  const dataRef = useRef({ shapes: null, vehicles: null, stops: null, aq: null, community: null, parking: null })
   const propsRef = useRef({ stopsData, stopsById, arrivalsIndex, lang })
   const serviceRef = useRef(service)
   serviceRef.current = service
+  // Latest UI state — replayed by the map 'load' handler if it was set
+  // before the map finished initializing (same race class as the data FCs)
+  const stateRef = useRef({ service: 'transport', modeFilter: 'all', selectedRouteId: null, focusBounds: null })
+  stateRef.current = { service, modeFilter, selectedRouteId, focusBounds }
   const popupRef = useRef(null) // vehicle popup (transient)
   const boardRef = useRef(null) // stop board popup (persistent while selected)
   const callbacksRef = useRef({ onSelectStop, onStopClose })
@@ -72,11 +76,62 @@ export default function MapView({
     map.getSource(which)?.setData(fc)
   }
 
+  // ── State appliers (read latest values from refs; safe to call anytime)
+  function applyServiceVisibility() {
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+    const s = stateRef.current.service
+    const transport = ['shapes-line', 'shapes-alert', 'stops-dot', 'stops-selected', 'vehicles-halo', 'vehicles-core', 'vehicles-label']
+    const air = ['aq-halo', 'aq-dot', 'aq-label', 'community-dot']
+    const parking = ['parking-dot']
+    const show = (layers, visible) => {
+      for (const l of layers) {
+        if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', visible ? 'visible' : 'none')
+      }
+    }
+    show(transport, s === 'transport')
+    show(air, s === 'air')
+    show(parking, s === 'parking')
+    map.getCanvas().style.cursor = ''
+  }
+
+  function applyModeFilter() {
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+    const mode = stateRef.current.modeFilter
+    const filter = mode === 'all' ? null : ['==', ['get', 'mode'], mode]
+    for (const layer of ['shapes-line', 'vehicles-halo', 'vehicles-core', 'vehicles-label']) {
+      map.setFilter(layer, filter)
+    }
+    // The amber alert overlay keeps its dedicated alert filter AND the mode filter
+    map.setFilter(
+      'shapes-alert',
+      mode === 'all'
+        ? ['==', ['get', 'alert'], true]
+        : ['all', ['==', ['get', 'alert'], true], ['==', ['get', 'mode'], mode]],
+    )
+  }
+
+  function applyRouteSelection() {
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+    const routeId = stateRef.current.selectedRouteId
+    map.setFilter('shapes-selected', ['==', ['get', 'routeId'], routeId ?? ''])
+    const dim = routeId ? 0.12 : null
+    map.setPaintProperty('shapes-line', 'line-opacity', dim ?? 0.45)
+    map.setPaintProperty('shapes-alert', 'line-opacity', dim ?? 0.9)
+  }
+
+  function applyFocus() {
+    const map = mapRef.current
+    if (!map || !readyRef.current || !stateRef.current.focusBounds) return
+    map.fitBounds(stateRef.current.focusBounds, { padding: 60, maxZoom: 15, duration: 700 })
+  }
+
   // ── Vehicle tweening ────────────────────────────────────────────────
   // On each new batch we animate from the currently displayed positions
   // to the new targets, so vehicles glide instead of jumping every poll.
   const animRef = useRef({ targets: null, from: new Map(), current: new Map(), raf: 0, start: 0, last: 0 })
-  const aqDataRef = useRef(null)
 
   const tweenStep = () => {
     const st = animRef.current
@@ -418,10 +473,18 @@ export default function MapView({
       // Exposed for debugging/E2E tests (queryRenderedFeatures etc.)
       window.__map = map
       map.resize()
-      // Flush anything that arrived before the map finished loading
+      // Replay everything that arrived or changed before the map finished
+      // loading — data FCs, active service, mode filter, selected line
       pushData('shapes', dataRef.current.shapes)
       pushData('stops', dataRef.current.stops)
-      pushVehicles(dataRef.current.vehicles)
+      pushData('aq', dataRef.current.aq)
+      pushData('community', dataRef.current.community)
+      pushData('parking', dataRef.current.parking)
+      if (dataRef.current.vehicles) pushVehicles(dataRef.current.vehicles)
+      applyServiceVisibility()
+      applyModeFilter()
+      applyRouteSelection()
+      applyFocus()
     })
 
     return () => {
@@ -446,7 +509,6 @@ export default function MapView({
     if (!mapRef.current || !readyRef.current) return
     pushVehicles(vehiclesFC)
   }, [vehiclesFC])
-
   // Push stop markers (re-marked with live coverage on every poll)
   useEffect(() => {
     if (!stopsData) return
@@ -498,62 +560,37 @@ export default function MapView({
   // Push air-quality stations (rebuilds on pollutant change; flushed on
   // map load if it arrived first — same race handling as shapes/stops)
   useEffect(() => {
-    aqDataRef.current = aqFC
-    const map = mapRef.current
-    if (!map || !readyRef.current || !aqFC) return
-    map.getSource('aq')?.setData(aqFC)
+    dataRef.current.aq = aqFC
+    pushData('aq', aqFC)
   }, [aqFC])
 
   // Push citizen sensors (cleared when the pollutant has no community data)
   useEffect(() => {
+    dataRef.current.community = communityFC
     const map = mapRef.current
     if (!map || !readyRef.current) return
     map.getSource('community')?.setData(communityFC ?? emptyFC())
   }, [communityFC])
 
-  // Service switch: transport layers <-> air quality layers
+  // Service switch: replay visibility through the shared applier
   useEffect(() => {
-    const map = mapRef.current
-    if (!map || !readyRef.current) return
-    const transport = ['shapes-line', 'shapes-alert', 'stops-dot', 'stops-selected', 'vehicles-halo', 'vehicles-core', 'vehicles-label']
-    const air = ['aq-halo', 'aq-dot', 'aq-label', 'community-dot']
-    const parking = ['parking-dot']
-    const show = (layers, visible) => {
-      for (const l of layers) {
-        if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', visible ? 'visible' : 'none')
-      }
-    }
-    show(transport, service === 'transport')
-    show(air, service === 'air')
-    show(parking, service === 'parking')
-    map.getCanvas().style.cursor = ''
+    applyServiceVisibility()
   }, [service])
 
   // Push parking features (built only in Parking mode)
   useEffect(() => {
-    const map = mapRef.current
-    if (!map || !readyRef.current || !parkingFC) return
-    map.getSource('parking')?.setData(parkingFC)
+    dataRef.current.parking = parkingFC
+    pushData('parking', parkingFC)
   }, [parkingFC])
 
-  // Apply mode filter to all layers
+  // Mode filter: replay through the shared applier
   useEffect(() => {
-    const map = mapRef.current
-    if (!map || !readyRef.current) return
-    const filter = modeFilter === 'all' ? null : ['==', ['get', 'mode'], modeFilter]
-    for (const layer of ['shapes-line', 'shapes-alert', 'vehicles-halo', 'vehicles-core', 'vehicles-label']) {
-      map.setFilter(layer, filter)
-    }
+    applyModeFilter()
   }, [modeFilter])
 
-  // Selected line: highlight it and dim the rest of the network
+  // Selected line: replay highlight + dim through the shared applier
   useEffect(() => {
-    const map = mapRef.current
-    if (!map || !readyRef.current) return
-    map.setFilter('shapes-selected', ['==', ['get', 'routeId'], selectedRouteId ?? ''])
-    const dim = selectedRouteId ? 0.12 : null
-    map.setPaintProperty('shapes-line', 'line-opacity', dim ?? 0.45)
-    map.setPaintProperty('shapes-alert', 'line-opacity', dim ?? 0.9)
+    applyRouteSelection()
   }, [selectedRouteId])
 
   // Camera focus bounds (when a line is picked)
@@ -666,15 +703,19 @@ function aqPopupHTML(props, lang) {
     </div>`
 }
 
-/** Citizen-sensor popup: PM readings + age + provenance. */function communityPopupHTML(props, lang) {
-  const feedKey = 'PM10'
+/** Citizen-sensor popup: PM readings + age + provenance. */
+function communityPopupHTML(props, lang) {
+  // The reading's pollutant travels with the feature (PM10 or PM2.5 —
+  // whichever the user had selected when the dots were colored)
+  const feedKey = props.pollutant ?? 'PM10'
+  const meta = Object.values(POLLUTANTS).find((m) => m.key === feedKey) ?? { label: feedKey, unit: 'µg/m³' }
   const rows = []
   if (props.value != null) {
     const band = aqiBand(feedKey, props.value)
     rows.push(
       `<li><span class="aq-band-dot" style="background:${band?.color ?? '#8c959f'}"></span>` +
-        `<span class="aq-poll">PM10</span><span class="aq-val">${props.value} µg/m³</span>` +
-        `<span class="aq-band">${escapeHtml(band?.label ?? '')}</span></li>`,
+        `<span class="aq-poll">${escapeHtml(meta.label)}</span><span class="aq-val">${props.value} ${escapeHtml(meta.unit)}</span>` +
+        `<span class="aq-band">${escapeHtml(aqiBandLabel(band, lang))}</span></li>`,
     )
   }
   const ageMs = props.tsMs ? Date.now() - props.tsMs : null
