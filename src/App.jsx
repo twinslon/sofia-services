@@ -529,7 +529,6 @@ export default function App() {
           {' · '}
           <a href={`${import.meta.env.BASE_URL}about.html`}>{t('aboutLink')}</a>
         </footer>
-        </footer>
       </main>
     </div>
   )
