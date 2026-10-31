@@ -74,6 +74,7 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 
 ### Later
 
+- [ ] **Real mobile app** — preferred path: Capacitor wrap of this web app (reuses everything; adds native GPS, push notifications for alerts, app-store presence). Cheaper intermediate: PWA install support (manifest + service worker)
 - [ ] Street-level parking spaces (31,705 official spots, Sept 2020 survey) — likely redundant with OSM layer; data partly stale post-2026 zone expansion
 - [ ] Paid zone polygons — **BLOCKED on official data**: municipal GeoJSON exists but is stale (2020 layout, missing the 2021 + Jan-2026 expansions; verified — the expanded kv. МАКЕДОНИЯ area is absent). Next step: request current geometry from ОП Транспорт / Столична община, or digitize from the ordinance street lists
 - [ ] Bundle code-splitting — LOW priority: single-view map app, everything in the 382 kB gzipped bundle is on the critical path. Revisit only if heavy per-service modules appear. Bigger perf lever if ever needed: lazy-load GTFS extracts (~6 MB raw) by viewport
