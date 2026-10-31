@@ -4,7 +4,7 @@ Listing & visualizing city services in Sofia, Bulgaria — **starting with live 
 
 **Live: https://twinslon.github.io/sofia-services/**
 
-https://github.com/twinslon/sofia-services/raw/main/docs/demo.mp4
+https://github.com/twinslon/sofia-services/raw/main/public/demo.mp4
 
 An interactive map showing the public transport network (lines, routes) and **vehicles moving in real time** — buses, trams, trolleybuses and the metro.
 
