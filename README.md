@@ -64,14 +64,17 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 - [x] Mobile ergonomics — bottom-sheet panels, compact header, touch targets
 - [x] Smooth vehicle movement — positions tweened between polls (snap on GPS jumps)
 - [x] bg/en UI toggle — Bulgarian + English chrome, auto-detected and persisted
-- [x] E2E + data-integrity test suite (Playwright, 36 tests) and Chrome DevTools MCP debugging
+- [x] **Parking mode** — third switcher entry: 6,236 OSM spots (bike parking, car parks, 256 EV charging), multi-select layer chips, detail popups, daily bake
+- [x] **Line explorer v2** — opt-in ☰ Lines picker in the header: both directions, ordered stops, live next departures, route highlight + fit-to-view
+- [x] E2E + data-integrity test suite (Playwright, 43 tests) and Chrome DevTools MCP debugging
 
 ### Next up
 
-- [ ] Line explorer v2 — opt-in entry point (e.g. a line picker in the header) instead of map clicks, which misfired when aiming at vehicles
+- [ ] Parking spaces layer — 31,705 official individual spots (urbandata.sofia.bg, Sept 2020 survey) with type details; complements the OSM car-park dots
+- [ ] Gather real user feedback before further expansion
 
 ### Later
 
-- [ ] City bike parking and paid parking zones (opendata.government.bg)
+- [ ] Paid zone polygons — **BLOCKED on official data**: municipal GeoJSON exists but is stale (2020 layout, missing the 2021 + Jan-2026 expansions; verified — the expanded kv. МАКЕДОНИЯ area is absent). Next step: request current geometry from ОП Транспорт / Столична община, or digitize from the ordinance street lists
 - [ ] Bundle code-splitting (maplibre + protobuf dominate the 380 kB gzipped JS)
 - [ ] Static full-day timetables (calendar_dates) — live departures cover the current need
