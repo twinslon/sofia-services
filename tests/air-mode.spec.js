@@ -11,7 +11,7 @@ test.describe('air quality mode', () => {
     const state = await page.evaluate(() => {
       const m = window.__map
       return {
-        vehiclesHidden: m.getLayoutProperty('vehicles-core', 'visibility') === 'none',
+        vehiclesHidden: m.getLayoutProperty('vehicles-icon', 'visibility') === 'none',
         stopsHidden: m.getLayoutProperty('stops-dot', 'visibility') === 'none',
         aqVisible: m.getLayoutProperty('aq-dot', 'visibility') === 'visible',
         stations: m.queryRenderedFeatures({ layers: ['aq-dot'] }).length,
@@ -34,9 +34,9 @@ test.describe('air quality mode', () => {
     const back = await page.evaluate(() => {
       const m = window.__map
       return {
-        vehiclesVisible: m.getLayoutProperty('vehicles-core', 'visibility') === 'visible',
+        vehiclesVisible: m.getLayoutProperty('vehicles-icon', 'visibility') === 'visible',
         aqHidden: m.getLayoutProperty('aq-dot', 'visibility') === 'none',
-        vehicles: m.queryRenderedFeatures({ layers: ['vehicles-core'] }).length,
+        vehicles: m.queryRenderedFeatures({ layers: ['vehicles-icon'] }).length,
       }
     })
     expect(back.vehiclesVisible).toBe(true)
@@ -86,7 +86,7 @@ test.describe('air quality mode', () => {
 
     const state = await page.evaluate(() => ({
       aqVisible: window.__map.getLayoutProperty('aq-dot', 'visibility') === 'visible',
-      transportHidden: window.__map.getLayoutProperty('vehicles-core', 'visibility') === 'none',
+      transportHidden: window.__map.getLayoutProperty('vehicles-icon', 'visibility') === 'none',
     }))
     expect(state.aqVisible).toBe(true)
     expect(state.transportHidden).toBe(true)

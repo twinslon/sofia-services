@@ -43,7 +43,7 @@ test.describe('parking mode', () => {
     const state = await page.evaluate(() => {
       const m = window.__map
       return {
-        vehiclesHidden: m.getLayoutProperty('vehicles-core', 'visibility') === 'none',
+        vehiclesHidden: m.getLayoutProperty('vehicles-icon', 'visibility') === 'none',
         stopsHidden: m.getLayoutProperty('stops-dot', 'visibility') === 'none',
         aqHidden: m.getLayoutProperty('aq-dot', 'visibility') === 'none',
         parkingVisible: m.getLayoutProperty('parking-dot', 'visibility') === 'visible',

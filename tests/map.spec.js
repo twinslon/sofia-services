@@ -55,7 +55,7 @@ test.describe('map rendering', () => {
     await waitForApp(page)
     const fired = await page.evaluate(() => {
       const m = window.__map
-      const f = m.queryRenderedFeatures({ layers: ['vehicles-core'] })[0]
+      const f = m.queryRenderedFeatures({ layers: ['vehicles-icon'] })[0]
       if (!f) return null
       const lngLat = f.geometry.coordinates
       m.fire('click', { lngLat, point: m.project(lngLat) })

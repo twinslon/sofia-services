@@ -19,10 +19,10 @@ export function mapStats(page) {
       canvasW: canvas?.clientWidth ?? 0,
       canvasH: canvas?.clientHeight ?? 0,
       tilesLoaded: m.areTilesLoaded(),
-      vehiclesOnScreen: m.queryRenderedFeatures({ layers: ['vehicles-core'] }).length,
+      vehiclesOnScreen: m.queryRenderedFeatures({ layers: ['vehicles-icon'] }).length,
       shapesOnScreen: m.queryRenderedFeatures({ layers: ['shapes-line'] }).length,
-      sampleVehicle: m.queryRenderedFeatures({ layers: ['vehicles-core'] })[0]?.properties ?? null,
-      vehicleLayerFilter: m.getLayer('vehicles-core')?.filter ?? null,
+      sampleVehicle: m.queryRenderedFeatures({ layers: ['vehicles-icon'] })[0]?.properties ?? null,
+      vehicleLayerFilter: m.getLayer('vehicles-icon')?.filter ?? null,
     }
   })
 }

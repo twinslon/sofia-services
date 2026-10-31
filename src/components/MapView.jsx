@@ -81,7 +81,7 @@ export default function MapView({
     const map = mapRef.current
     if (!map || !readyRef.current) return
     const s = stateRef.current.service
-    const transport = ['shapes-line', 'shapes-alert', 'stops-dot', 'stops-selected', 'vehicles-halo', 'vehicles-core', 'vehicles-label']
+    const transport = ['shapes-line', 'shapes-alert', 'stops-dot', 'stops-selected', 'vehicles-icon', 'vehicles-label']
     const air = ['aq-halo', 'aq-dot', 'aq-label', 'community-dot']
     const parking = ['parking-dot']
     const show = (layers, visible) => {
@@ -100,7 +100,7 @@ export default function MapView({
     if (!map || !readyRef.current) return
     const mode = stateRef.current.modeFilter
     const filter = mode === 'all' ? null : ['==', ['get', 'mode'], mode]
-    for (const layer of ['shapes-line', 'vehicles-halo', 'vehicles-core', 'vehicles-label']) {
+    for (const layer of ['shapes-line', 'vehicles-icon', 'vehicles-label']) {
       map.setFilter(layer, filter)
     }
     // The amber alert overlay keeps its dedicated alert filter AND the mode filter
@@ -291,26 +291,48 @@ export default function MapView({
         filter: ['==', ['get', 'stop_id'], selectedStop?.id ?? ''],
       })
 
+      // Vehicle icon images (mode glyph on colored pill), registered at 2x
+      // for crispness. Glyphs are the approved stroke-style set.
+      const pill = (color, glyph) =>
+        `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24">` +
+        `<rect x="1" y="1" width="22" height="22" rx="6" fill="${color}" stroke="#ffffff" stroke-width="1.6"/>` +
+        `<g fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round">${glyph}</g></svg>`
+      const GLYPHS = {
+        bus: `<rect x="4" y="4.5" width="16" height="12.5" rx="2"/><line x1="4" y1="11.5" x2="20" y2="11.5"/><circle cx="8" cy="19" r="1.5"/><circle cx="16" cy="19" r="1.5"/>`,
+        trolley: `<rect x="4" y="5.5" width="16" height="11.5" rx="2"/><line x1="4" y1="12" x2="20" y2="12"/><path d="M9 5.5 L5.5 1.5 M15 5.5 L18.5 1.5 M5.5 1.5 H18.5"/><circle cx="8" cy="19" r="1.5"/><circle cx="16" cy="19" r="1.5"/>`,
+        tram: `<rect x="4.5" y="6.5" width="15" height="11" rx="2"/><path d="M12 6.5 L7.5 2 M12 6.5 L16.5 2 M7.5 2 H16.5"/><line x1="4.5" y1="12.5" x2="19.5" y2="12.5"/><circle cx="8.5" cy="19.5" r="1.4"/><circle cx="15.5" cy="19.5" r="1.4"/>`,
+        metro: `<path d="M4.5 19.5 V10 a7.5 6.5 0 0 1 15 0 V19.5 Z"/><path d="M7 14 a5 4.5 0 0 1 10 0"/><circle cx="8" cy="17" r="1.2" fill="#fff" stroke="none"/><circle cx="16" cy="17" r="1.2" fill="#fff" stroke="none"/>`,
+      }
+      for (const [mode, m] of Object.entries(MODES)) {
+        const img = new Image(48, 48)
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(pill(m.color, GLYPHS[mode] ?? ''))
+        img
+          .decode()
+          .then(() => {
+            if (map.hasImage('icon-' + mode)) map.removeImage('icon-' + mode)
+            map.addImage('icon-' + mode, img, { pixelRatio: 2 })
+          })
+          .catch(() => {})
+      }
+
+      // Vehicles — mode icon badges (small at city zoom, readable when zoomed)
       map.addLayer({
-        id: 'vehicles-halo',
-        type: 'circle',
+        id: 'vehicles-icon',
+        type: 'symbol',
         source: 'vehicles',
-        paint: {
-          'circle-radius': 6,
-          'circle-color': colorByMode(MODES.other.color),
-          'circle-opacity': 0.3,
-          'circle-blur': 0.6,
-        },
-      })
-      map.addLayer({
-        id: 'vehicles-core',
-        type: 'circle',
-        source: 'vehicles',
-        paint: {
-          'circle-radius': 3.5,
-          'circle-color': '#ffffff',
-          'circle-stroke-width': 2,
-          'circle-stroke-color': colorByMode(MODES.other.color),
+        layout: {
+          'icon-image': [
+            'match',
+            ['get', 'mode'],
+            'bus', 'icon-bus',
+            'tram', 'icon-tram',
+            'trolley', 'icon-trolley',
+            'metro', 'icon-metro',
+            'icon-other',
+          ],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 11, 0.6, 13, 0.85, 16, 1.05],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
         },
       })
       map.addLayer({
@@ -443,7 +465,7 @@ export default function MapView({
           }
           return
         }
-        const vehicles = map.queryRenderedFeatures(e.point, { layers: ['vehicles-core'] })
+        const vehicles = map.queryRenderedFeatures(e.point, { layers: ['vehicles-icon'] })
         if (vehicles.length > 0) {
           popupRef.current?.remove()
           popupRef.current = new maplibregl.Popup({ closeButton: false, offset: 8, maxWidth: '260px' })
@@ -464,7 +486,7 @@ export default function MapView({
             ? ['aq-dot', 'community-dot']
             : serviceRef.current === 'parking'
               ? ['parking-dot']
-              : ['vehicles-core', 'stops-dot']
+              : ['vehicles-icon', 'stops-dot']
         const hit = map.queryRenderedFeatures(e.point, { layers })
         map.getCanvas().style.cursor = hit.length > 0 ? 'pointer' : ''
       })

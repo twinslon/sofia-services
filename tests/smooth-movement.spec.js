@@ -13,7 +13,7 @@ test.describe('smooth vehicle movement', () => {
             Math.hypot((b[0] - a[0]) * 82000, (b[1] - a[1]) * 111000)
           const sample = () => {
             const out = new Map()
-            for (const f of m.queryRenderedFeatures({ layers: ['vehicles-core'] })) {
+            for (const f of m.queryRenderedFeatures({ layers: ['vehicles-icon'] })) {
               out.set(f.properties.id, f.geometry.coordinates)
             }
             return out
