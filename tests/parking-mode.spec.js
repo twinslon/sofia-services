@@ -1,5 +1,31 @@
 import { test, expect } from '@playwright/test'
+import { buildParkingFC, PARKING_COLORS, parkingTypeLabel } from '../src/lib/parking.js'
 import { waitForApp } from './helpers.js'
+
+test.describe('parking lib', () => {
+  test('per-type colors are distinct and flow into features', () => {
+    const colors = Object.values(PARKING_COLORS)
+    expect(new Set(colors).size).toBe(3) // all three distinct
+    const sc = {
+      features: [
+        { id: 'n/1', type: 'bike', lat: 42.7, lon: 23.3 },
+        { id: 'w/2', type: 'car', lat: 42.71, lon: 23.31 },
+        { id: 'n/3', type: 'ev', lat: 42.72, lon: 23.32 },
+      ],
+    }
+    const fc = buildParkingFC(sc, ['bike', 'car', 'ev'])
+    expect(fc.features.length).toBe(3)
+    for (const f of fc.features) {
+      expect(f.properties.color).toBe(PARKING_COLORS[f.properties.type])
+    }
+    expect(PARKING_COLORS.car).not.toBe(PARKING_COLORS.bike)
+  })
+
+  test('parkingTypeLabel localizes', () => {
+    expect(parkingTypeLabel('bike', 'bg')).toBe('Велопаркинг')
+    expect(parkingTypeLabel('car', 'en')).toBe('Car park')
+  })
+})
 
 test.describe('parking mode', () => {
   test('switching to Parking hides other layers and shows OSM spots', async ({ page }) => {

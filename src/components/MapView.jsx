@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { MODES, SOFIA_CENTER, formatEta } from '../lib/transport.js'
 import { POLLUTANTS, aqiBand, aqiBandLabel, sparklineSVG } from '../lib/aq.js'
-import { parkingRows } from '../lib/parking.js'
+import { parkingRows, PARKING_COLORS, parkingTypeLabel } from '../lib/parking.js'
 
 // OpenFreeMap: free vector tiles, no API key, no watermark
 // https://openfreemap.org — styles: positron (light), dark, liberty, bright
@@ -694,14 +694,8 @@ function aqPopupHTML(props, lang) {
     </div>`
 }
 
-/** Parking spot popup: name + capacity/access/fee/operator details. */
-function parkingPopupHTML(props, lang) {
-  const colors = { bike: '#2563eb', car: '#7c3aed', ev: '#16a34a' }
-  const labels = {
-    en: { bike: 'Bike parking', car: 'Car park', ev: 'EV charging' },
-    bg: { bike: 'Велопаркинг', car: 'Паркинг', ev: 'Е-зарядна станция' },
-  }
-  const typeLabel = labels[lang]?.[props.type] ?? labels.en[props.type] ?? props.type
+/** Parking spot popup: name + capacity/access/fee/operator details. */function parkingPopupHTML(props, lang) {
+  const typeLabel = parkingTypeLabel(props.type, lang)
   const detailRows = parkingRows(props, lang)
     .map(
       (r) =>
@@ -712,7 +706,7 @@ function parkingPopupHTML(props, lang) {
   return `
     <div class="aq-popup">
       <div class="aq-head">
-        <span class="line-badge" style="background:${colors[props.type] ?? '#8c959f'}">⏵</span>
+        <span class="line-badge" style="background:${PARKING_COLORS[props.type] ?? '#8c959f'}">⏵</span>
         <h2>${props.name ? escapeHtml(props.name) : typeLabel}</h2>
       </div>
       <div class="aq-sub">${escapeHtml(typeLabel)}</div>
