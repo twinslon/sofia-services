@@ -1097,6 +1097,11 @@ body,
     padding: 12px 6px;
   }
 
+  .lang-btn {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
   .stop-results button {
     padding: 10px 8px;
   }
