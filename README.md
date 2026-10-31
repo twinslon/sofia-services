@@ -70,11 +70,11 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 
 ### Next up
 
-- [ ] Parking spaces layer — 31,705 official individual spots (urbandata.sofia.bg, Sept 2020 survey) with type details; complements the OSM car-park dots
 - [ ] Gather real user feedback before further expansion
 
 ### Later
 
+- [ ] Street-level parking spaces (31,705 official spots, Sept 2020 survey) — likely redundant with OSM layer; data partly stale post-2026 zone expansion
 - [ ] Paid zone polygons — **BLOCKED on official data**: municipal GeoJSON exists but is stale (2020 layout, missing the 2021 + Jan-2026 expansions; verified — the expanded kv. МАКЕДОНИЯ area is absent). Next step: request current geometry from ОП Транспорт / Столична община, or digitize from the ordinance street lists
 - [ ] Bundle code-splitting (maplibre + protobuf dominate the 380 kB gzipped JS)
 - [ ] Static full-day timetables (calendar_dates) — live departures cover the current need
