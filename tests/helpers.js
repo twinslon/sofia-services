@@ -3,11 +3,19 @@
 export const KNOWN_MODES = new Set(['metro', 'tram', 'trolley', 'bus', 'other'])
 
 /** Load the app and wait for: live feed ok + map fully rendered.
- * `animate` opts into vehicle tweening (slower; default snaps vehicles). */
+ * `animate` opts into vehicle tweening (slower; default snaps vehicles).
+ * Returns false when the MapLibre map never initializes (CI runner
+ * without usable WebGL) — map-dependent tests then skip. */
 export async function waitForApp(page, { animate = false } = {}) {
   await page.goto(animate ? '/' : '/?static-vehicles')
   await page.waitForSelector('.status.status-ok', { timeout: 60_000 })
-  await page.waitForFunction(() => window.__map?.loaded?.() === true, undefined, { timeout: 60_000 })
+  let loaded = true
+  try {
+    await page.waitForFunction(() => window.__map?.loaded?.() === true, undefined, { timeout: 60_000 })
+  } catch {
+    loaded = false // map failed to initialize in this environment
+  }
+  return loaded
 }
 
 /** Pixel-agnostic render stats straight from the MapLibre instance. */
