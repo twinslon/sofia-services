@@ -671,9 +671,11 @@ export default function MapView({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !readyRef.current || !outagesWaterFC || service !== 'outages') return
-    const coords = outagesWaterFC.features.flatMap((f) =>
-      f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : [f.geometry.coordinates],
-    )
+    const coords = outagesWaterFC.features.flatMap((f) => {
+      if (f.geometry?.type === 'Polygon') return f.geometry.coordinates[0] ?? []
+      if (f.geometry?.type === 'Point') return [f.geometry.coordinates]
+      return []
+    })
     if (coords.length === 0) return
     const xs = coords.map((c) => c[0])
     const ys = coords.map((c) => c[1])
