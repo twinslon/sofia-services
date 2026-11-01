@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import maplibregl from 'maplibre-gl'
+import { Map as MapLibreMap, Popup, NavigationControl } from 'maplibre-gl'
 import { MODES, SOFIA_CENTER, formatEta } from '../lib/transport.js'
 import { POLLUTANTS, aqiBand, aqiBandLabel, sparklineSVG } from '../lib/aq.js'
 import { parkingRows, PARKING_COLORS, parkingTypeLabel } from '../lib/parking.js'
@@ -191,7 +191,7 @@ export default function MapView({
 
   // Create the map once
   useEffect(() => {
-    const map = new maplibregl.Map({
+    const map = new MapLibreMap({
       container: containerRef.current,
       style: BASEMAP_STYLE_URL,
       center: SOFIA_CENTER,
@@ -199,7 +199,7 @@ export default function MapView({
       attributionControl: { compact: true },
     })
     mapRef.current = map
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+    map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
     map.on('load', () => {
       map.addSource('shapes', {
         type: 'geojson',
@@ -479,7 +479,7 @@ export default function MapView({
           const stations = map.queryRenderedFeatures(e.point, { layers: ['aq-dot'] })
           if (stations.length > 0) {
             popupRef.current?.remove()
-            popupRef.current = new maplibregl.Popup({ offset: 10, maxWidth: '280px' })
+            popupRef.current = new Popup({ offset: 10, maxWidth: '280px' })
               .setLngLat(e.lngLat)
               .setHTML(aqPopupHTML(stations[0].properties, propsRef.current.lang))
               .addTo(map)
@@ -488,7 +488,7 @@ export default function MapView({
           const community = map.queryRenderedFeatures(e.point, { layers: ['community-dot'] })
           if (community.length > 0) {
             popupRef.current?.remove()
-            popupRef.current = new maplibregl.Popup({ closeButton: false, offset: 8, maxWidth: '240px' })
+            popupRef.current = new Popup({ closeButton: false, offset: 8, maxWidth: '240px' })
               .setLngLat(e.lngLat)
               .setHTML(communityPopupHTML(community[0].properties, propsRef.current.lang))
               .addTo(map)
@@ -499,7 +499,7 @@ export default function MapView({
           const spots = map.queryRenderedFeatures(e.point, { layers: ['parking-dot'] })
           if (spots.length > 0) {
             popupRef.current?.remove()
-            popupRef.current = new maplibregl.Popup({ offset: 10, maxWidth: '260px' })
+            popupRef.current = new Popup({ offset: 10, maxWidth: '260px' })
               .setLngLat(e.lngLat)
               .setHTML(parkingPopupHTML(spots[0].properties, propsRef.current.lang))
               .addTo(map)
@@ -511,7 +511,7 @@ export default function MapView({
           if (spots.length > 0) {
             const p = spots[0].properties
             popupRef.current?.remove()
-            popupRef.current = new maplibregl.Popup({ offset: 10, maxWidth: '280px' })
+            popupRef.current = new Popup({ offset: 10, maxWidth: '280px' })
               .setLngLat(e.lngLat)
               .setHTML(
                 `<div class="aq-popup"><div class="aq-head"><h2>${escapeHtml(p.alertType || 'Водно прекъсване')}</h2></div>` +
@@ -526,7 +526,7 @@ export default function MapView({
         const vehicles = map.queryRenderedFeatures(e.point, { layers: ['vehicles-icon'] })
         if (vehicles.length > 0) {
           popupRef.current?.remove()
-          popupRef.current = new maplibregl.Popup({ closeButton: false, offset: 8, maxWidth: '260px' })
+          popupRef.current = new Popup({ closeButton: false, offset: 8, maxWidth: '260px' })
             .setLngLat(e.lngLat)
             .setHTML(vehiclePopupHTML(vehicles[0].properties, propsRef.current))
             .addTo(map)
@@ -623,7 +623,7 @@ export default function MapView({
       boardRef.current.setHTML(html)
     } else {
       boardRef.current?.remove()
-      const board = new maplibregl.Popup({
+      const board = new Popup({
         offset: 12,
         maxWidth: '320px',
         className: 'board-popup-wrap',
