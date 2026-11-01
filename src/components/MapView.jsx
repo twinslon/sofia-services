@@ -667,6 +667,25 @@ export default function MapView({
     pushData('outages-water', outagesWaterFC)
   }, [outagesWaterFC])
 
+  // Entering Outages mode: fit the view to the active water interruptions
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !readyRef.current || !outagesWaterFC || service !== 'outages') return
+    const coords = outagesWaterFC.features.flatMap((f) =>
+      f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : [f.geometry.coordinates],
+    )
+    if (coords.length === 0) return
+    const xs = coords.map((c) => c[0])
+    const ys = coords.map((c) => c[1])
+    map.fitBounds(
+      [
+        [Math.min(...xs), Math.min(...ys)],
+        [Math.max(...xs), Math.max(...ys)],
+      ],
+      { padding: 60, maxZoom: 15, duration: 900 },
+    )
+  }, [service, outagesWaterFC])
+
   // Push parking features (built only in Parking mode)
   useEffect(() => {
     dataRef.current.parking = parkingFC
