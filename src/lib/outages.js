@@ -10,8 +10,10 @@ export function buildVikWaterFC(vikData) {
     .map((f) => {
       const a = f.attributes ?? {}
       const g = f.geometry ?? {}
+      // Newer bakes carry GeoJSON geometry (converted); legacy ESRI rings fallback
       let geometry = null
-      if (Array.isArray(g.rings)) geometry = { type: 'Polygon', coordinates: g.rings }
+      if (Array.isArray(g.coordinates)) geometry = g.coordinates
+      else if (Array.isArray(g.rings)) geometry = { type: 'Polygon', coordinates: g.rings }
       else if (Number.isFinite(g.x) && Number.isFinite(g.y)) geometry = { type: 'Point', coordinates: [g.x, g.y] }
       if (!geometry) return null
       return {
