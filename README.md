@@ -61,6 +61,7 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 - [x] **Air quality layer** — first non-transit service: official EEA monitoring stations, pollutant selector (PM10/PM2.5/NO₂/O₃/SO₂/CO), EU index colors, station popups; hourly refresh
 - [x] Citizen-sensor layer — 327 Sensor.Community PM sensors, hourly bake, outliers rejected
 - [x] Air quality v2 — 48h sparkline trend per pollutant in station popups
+- [x] **Outages mode** — fourth switcher entry: live water interruptions (ViK ArcGIS), heating outage districts (Топлофикация), electricity municipality status (ЕРМ Запад); per-utility chips, hourly refresh
 - [x] Light theme (OpenFreeMap positron + matching UI)
 - [x] GitHub Pages deployment — CI test gate, daily cron rebuild refreshes GTFS extracts
 - [x] Mobile ergonomics — bottom-sheet panels, compact header, touch targets

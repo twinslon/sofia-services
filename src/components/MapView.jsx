@@ -49,6 +49,7 @@ export default function MapView({
   aqFC,
   communityFC,
   parkingFC,
+  outagesWaterFC,
   lang,
   selectedRouteId,
   focusBounds,
@@ -84,6 +85,7 @@ export default function MapView({
     const transport = ['shapes-line', 'shapes-alert', 'stops-dot', 'stops-selected', 'vehicles-icon', 'vehicles-label']
     const air = ['aq-halo', 'aq-dot', 'aq-label', 'community-dot']
     const parking = ['parking-dot']
+    const outages = ['outages-water-fill', 'outages-water-line', 'outages-water-pt']
     const show = (layers, visible) => {
       for (const l of layers) {
         if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', visible ? 'visible' : 'none')
@@ -92,6 +94,7 @@ export default function MapView({
     show(transport, s === 'transport')
     show(air, s === 'air')
     show(parking, s === 'parking')
+    show(outages, s === 'outages')
     map.getCanvas().style.cursor = ''
   }
 
@@ -432,6 +435,44 @@ export default function MapView({
         },
       })
 
+      // Water outages (Outages mode)
+      map.addSource('outages-water', { type: 'geojson', data: emptyFC() })
+      map.addLayer({
+        id: 'outages-water-fill',
+        type: 'fill',
+        source: 'outages-water',
+        filter: ['==', ['geometry-type'], 'Polygon'],
+        layout: { visibility: 'none' },
+        paint: {
+          'fill-color': '#1d7ed8',
+          'fill-opacity': 0.25,
+        },
+      })
+      map.addLayer({
+        id: 'outages-water-line',
+        type: 'line',
+        source: 'outages-water',
+        filter: ['==', ['geometry-type'], 'Polygon'],
+        layout: { visibility: 'none' },
+        paint: {
+          'line-color': '#1d7ed8',
+          'line-width': 2,
+        },
+      })
+      map.addLayer({
+        id: 'outages-water-pt',
+        type: 'circle',
+        source: 'outages-water',
+        filter: ['==', ['geometry-type'], 'Point'],
+        layout: { visibility: 'none' },
+        paint: {
+          'circle-radius': 7,
+          'circle-color': '#1d7ed8',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+        },
+      })
+
       // Interactions — one click handler, mode-dependent
       map.on('click', (e) => {
         if (serviceRef.current === 'air') {
@@ -465,6 +506,23 @@ export default function MapView({
           }
           return
         }
+        if (serviceRef.current === 'outages') {
+          const spots = map.queryRenderedFeatures(e.point, { layers: ['outages-water-pt', 'outages-water-fill'] })
+          if (spots.length > 0) {
+            const p = spots[0].properties
+            popupRef.current?.remove()
+            popupRef.current = new maplibregl.Popup({ offset: 10, maxWidth: '280px' })
+              .setLngLat(e.lngLat)
+              .setHTML(
+                `<div class="aq-popup"><div class="aq-head"><h2>${escapeHtml(p.alertType || 'Водно прекъсване')}</h2></div>` +
+                  `<div class="aq-sub">${escapeHtml(p.district || '')}</div>` +
+                  `<p class="muted-sm">${escapeHtml(p.description || '')}</p>` +
+                  `<p class="muted-sm">${fmtRange(Number(p.start), Number(p.end), propsRef.current.lang)}</p></div>`,
+              )
+              .addTo(map)
+          }
+          return
+        }
         const vehicles = map.queryRenderedFeatures(e.point, { layers: ['vehicles-icon'] })
         if (vehicles.length > 0) {
           popupRef.current?.remove()
@@ -486,7 +544,9 @@ export default function MapView({
             ? ['aq-dot', 'community-dot']
             : serviceRef.current === 'parking'
               ? ['parking-dot']
-              : ['vehicles-icon', 'stops-dot']
+              : serviceRef.current === 'outages'
+                ? ['outages-water-pt', 'outages-water-fill']
+                : ['vehicles-icon', 'stops-dot']
         const hit = map.queryRenderedFeatures(e.point, { layers })
         map.getCanvas().style.cursor = hit.length > 0 ? 'pointer' : ''
       })
@@ -502,6 +562,8 @@ export default function MapView({
       pushData('aq', dataRef.current.aq)
       pushData('community', dataRef.current.community)
       pushData('parking', dataRef.current.parking)
+      pushData('outages-water', dataRef.current.outagesWater)
+      pushData('outages-water', dataRef.current.outagesWater)
       if (dataRef.current.vehicles) pushVehicles(dataRef.current.vehicles)
       applyServiceVisibility()
       applyModeFilter()
@@ -599,11 +661,23 @@ export default function MapView({
     applyServiceVisibility()
   }, [service])
 
+  // Push water outages (built only in Outages mode)
+  useEffect(() => {
+    dataRef.current.outagesWater = outagesWaterFC
+    pushData('outages-water', outagesWaterFC)
+  }, [outagesWaterFC])
+
   // Push parking features (built only in Parking mode)
   useEffect(() => {
     dataRef.current.parking = parkingFC
     pushData('parking', parkingFC)
   }, [parkingFC])
+
+  // Push water outages (built only in Outages mode)
+  useEffect(() => {
+    dataRef.current.outagesWater = outagesWaterFC
+    pushData('outages-water', outagesWaterFC)
+  }, [outagesWaterFC])
 
   // Mode filter: replay through the shared applier
   useEffect(() => {

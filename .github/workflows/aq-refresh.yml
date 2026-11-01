@@ -33,6 +33,12 @@ jobs:
       - name: Fetch citizen sensors subset (Sensor.Community)
         run: node scripts/fetch-sc.mjs
 
+      - name: Fetch current outages (ViK ArcGIS / Toplofikatsia / ERM Zapad)
+        run: |
+          node scripts/fetch-vik.mjs || echo "ViK fetch failed — keeping previous"
+          node scripts/fetch-toplo.mjs || echo "Toplo fetch failed — keeping previous"
+          node scripts/fetch-erm.mjs || echo "ERM fetch failed — keeping previous"
+
       - name: Build
         run: npm run build
 

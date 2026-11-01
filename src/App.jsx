@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import MapView from './components/MapView.jsx'
 import StopSearch from './components/StopSearch.jsx'
 import AlertsPanel from './components/AlertsPanel.jsx'
+import OutagesPanel from './components/OutagesPanel.jsx'
 import LinePicker from './components/LinePicker.jsx'
+import { buildVikWaterFC } from './lib/outages.js'
 import LineExplorer from './components/LineExplorer.jsx'
 import {
   MODES,
@@ -48,6 +50,8 @@ export default function App() {
   const [scData, setScData] = useState(null)
   const [parkingData, setParkingData] = useState(null)
   const [parkingLayers, setParkingLayers] = useState(() => new Set(['bike', 'car', 'ev']))
+  const [outagesData, setOutagesData] = useState(null)
+  const [outagesLayers, setOutagesLayers] = useState(() => new Set(['water', 'heating', 'elec']))
   const [status, setStatus] = useState({ state: 'loading', count: 0, updatedAt: null })
 
   // Load the prepared static GTFS extracts
@@ -176,6 +180,35 @@ export default function App() {
     }
   }, [service])
 
+  // Outages (water/heat/electricity): fetch the three baked files when
+  // entering Outages mode + every 10 min while there
+  useEffect(() => {
+    if (service !== 'outages') return
+    let cancelled = false
+    let timer
+    const base = `${import.meta.env.BASE_URL}data/`
+    const poll = async () => {
+      const [vik, toplo, erm] = await Promise.allSettled([
+        fetch(`${base}outages-vik.json`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status)))),
+        fetch(`${base}outages-toplo.json`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status)))),
+        fetch(`${base}outages-erm.json`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status)))),
+      ])
+      if (!cancelled) {
+        setOutagesData({
+          vik: vik.status === 'fulfilled' ? vik.value : null,
+          toplo: toplo.status === 'fulfilled' ? toplo.value : null,
+          erm: erm.status === 'fulfilled' ? erm.value : null,
+        })
+      }
+      if (!cancelled) timer = setTimeout(poll, 10 * 60_000)
+    }
+    poll()
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [service])
+
   // Poll the alerts feed on a slower cadence (it changes rarely)
   useEffect(() => {
     let cancelled = false
@@ -295,7 +328,7 @@ export default function App() {
         </div>
 
         <div className="service-switch" role="tablist" aria-label="Service">
-          {['transport', 'air', 'parking'].map((s) => (
+          {['transport', 'air', 'parking', 'outages'].map((s) => (
             <button
               key={s}
               role="tab"
@@ -306,7 +339,7 @@ export default function App() {
                 if (s === 'air') setSelectedStopId(null)
               }}
             >
-              {t(s === 'transport' ? 'transportTab' : s === 'air' ? 'airTab' : 'parkingTab')}
+              {t(s === 'transport' ? 'transportTab' : s === 'air' ? 'airTab' : s === 'parking' ? 'parkingTab' : 'outagesTab')}
             </button>
           ))}
         </div>
@@ -376,6 +409,31 @@ export default function App() {
           </nav>
         )}
 
+        {service === 'outages' && (
+          <nav className="filters" aria-label="Outage utilities">
+            {[
+              { key: 'water', label: t('chipWater') },
+              { key: 'heating', label: t('chipHeating') },
+              { key: 'elec', label: t('chipElectricity') },
+            ].map((l) => (
+              <button
+                key={l.key}
+                className={`chip ${outagesLayers.has(l.key) ? 'chip-active' : ''}`}
+                onClick={() =>
+                  setOutagesLayers((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(l.key)) next.delete(l.key)
+                    else next.add(l.key)
+                    return next
+                  })
+                }
+              >
+                {l.label}
+              </button>
+            ))}
+          </nav>
+        )}
+
         {service === 'transport' && alerts && (
           <button
             className={`bell ${alertsOpen ? 'bell-active' : ''}`}
@@ -402,7 +460,14 @@ export default function App() {
                     date: new Date(parkingData.generated_at).toLocaleDateString(),
                   })
                 : t('parkingLoading')
-            : status.state === 'loading'
+            : service === 'outages'
+              ? t(
+                  outagesData?.vik?.layers?.find((l) => l.id === 2)?.count
+                    ? 'outagesStatusActive'
+                    : 'outagesStatusNone',
+                  { time: outagesData?.generated_at ? new Date(outagesData.generated_at).toLocaleTimeString() : '' },
+                )
+              : status.state === 'loading'
               ? t('statusConnecting')
               : status.state === 'ok'
                 ? t('statusVehicles', { n: status.count, time: status.updatedAt.toLocaleTimeString() })
@@ -439,6 +504,7 @@ export default function App() {
           aqFC={aqFC}
           communityFC={communityFC}
           parkingFC={parkingFC}
+          outagesWaterFC={service === 'outages' ? buildVikWaterFC(outagesData?.vik) : null}
           lang={lang}
           selectedRouteId={selectedRouteId}
           focusBounds={routeFocusBounds}
@@ -471,6 +537,12 @@ export default function App() {
               onSelectStop={setSelectedStopId}
               onClose={() => setSelectedRouteId(null)}
             />
+          </div>
+        )}
+
+        {service === 'outages' && (
+          <div className="alerts-wrap">
+            <OutagesPanel toplo={outagesData?.toplo} erm={outagesData?.erm} onClose={() => setService('transport')} />
           </div>
         )}
 
