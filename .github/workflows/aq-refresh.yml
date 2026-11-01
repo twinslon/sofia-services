@@ -11,7 +11,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: aq-refresh
+  cancel-in-progress: false
 
 jobs:
   build:
