@@ -28,6 +28,9 @@ npm run dev            # http://localhost:5173
 | `https://gtfs.sofiatraffic.bg/api/v1/vehicle-positions` | Real-time vehicle positions (protobuf) |
 | `https://gtfs.sofiatraffic.bg/api/v1/trip-updates` | Real-time arrival predictions (protobuf) — arrivals boards, vehicle next-stops |
 | `https://gtfs.sofiatraffic.bg/api/v1/alerts` | Service alerts (protobuf) — bell, panel, amber route highlights |
+| `https://gispx.sofiyskavoda.bg/arcgis/rest/services/WSI_PUBLIC/InfoCenter_Public/MapServer` | Current water interruptions (ViK ArcGIS, CK-1970→WGS84 converted) — Outages mode |
+| `https://toplo.bg/accidents-and-maintenance` | Heating outage districts (Топлофикация София) — Outages panel |
+| `https://info.ermzapad.bg/webint/vok/avplan.php` | Electricity interruption municipalities (ЕРМ Запад) — Outages panel |
 
 ## Testing
 
@@ -69,7 +72,7 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 - [x] bg/en UI toggle — Bulgarian + English chrome, auto-detected and persisted
 - [x] **Parking mode** — third switcher entry: 6,236 OSM spots (bike parking, car parks, 256 EV charging), multi-select layer chips, detail popups, daily bake
 - [x] **Line explorer v2** — opt-in ☰ Lines picker in the header: both directions, ordered stops, live next departures, route highlight + fit-to-view
-- [x] E2E + data-integrity test suite (Playwright, 43 tests) and Chrome DevTools MCP debugging
+- [x] E2E + data-integrity test suite (Playwright, 50 tests) and Chrome DevTools MCP debugging
 
 ### Next up
 
