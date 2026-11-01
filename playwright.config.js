@@ -8,12 +8,14 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     viewport: { width: 1280, height: 800 },
-    // System Chrome — no browser download needed locally or in CI
-    channel: 'chrome',
+    // CI pins Chrome for Testing via CHROME_PATH (see deploy.yml); local
+    // runs use the system Chrome stable
+    channel: process.env.CHROME_PATH ? undefined : 'chrome',
     headless: true,
     launchOptions: {
+      executablePath: process.env.CHROME_PATH || undefined,
       // Software WebGL for MapLibre in headless environments
-      args: ['--enable-unsafe-swiftshader'],
+      args: ['--no-sandbox', '--enable-unsafe-swiftshader'],
     },
     trace: 'retain-on-failure',
   },
