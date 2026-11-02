@@ -76,6 +76,7 @@ Basemap © OpenStreetMap contributors, tiles by [OpenFreeMap](https://openfreema
 
 ### Next up
 
+- [ ] **CI e2e suite — BLOCKED on environment**: BG live feeds (sofiatraffic.bg GTFS-RT) stopped answering GitHub runner IPs on Nov 1 — status-ok never appears in CI, all UI tests time out (local runs: fully green). Follow-up: mock the GTFS-RT endpoints with fixture protobufs in Playwright for deterministic CI
 - [ ] Gather real user feedback before further expansion
 
 ### Later
