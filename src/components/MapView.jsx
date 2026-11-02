@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { Map as MapLibreMap, Popup, NavigationControl } from 'maplibre-gl'
+import { Map as MapLibreMap, Popup, NavigationControl, setWorkerUrl } from 'maplibre-gl'
+import workerCode from 'maplibre-gl/dist/maplibre-gl-worker.mjs?raw'
+
+// MapLibre v6 spawns its worker from a URL; under bundlers + subpath
+// hosting that URL breaks and the map never loads. Inline the worker
+// as a blob URL instead — base-path and host independent.
+setWorkerUrl(URL.createObjectURL(new Blob([workerCode], { type: 'text/javascript' })))
 import { MODES, SOFIA_CENTER, formatEta } from '../lib/transport.js'
 import { POLLUTANTS, aqiBand, aqiBandLabel, sparklineSVG } from '../lib/aq.js'
 import { parkingRows, PARKING_COLORS, parkingTypeLabel } from '../lib/parking.js'
